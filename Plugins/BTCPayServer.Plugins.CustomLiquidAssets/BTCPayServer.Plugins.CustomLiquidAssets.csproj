@@ -4,8 +4,9 @@
     <AddRazorSupportForMvc>true</AddRazorSupportForMvc>
     <PreserveCompilationContext>false</PreserveCompilationContext>
     <GenerateEmbeddedFilesManifest>true</GenerateEmbeddedFilesManifest>
-    <AssemblyVersion>1.0.0</AssemblyVersion>
+    <AssemblyVersion>1.0.1</AssemblyVersion>
     <RazorLangVersion>3.0</RazorLangVersion>
+    <PackageVersion>1.0.1</PackageVersion>
   </PropertyGroup>
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />

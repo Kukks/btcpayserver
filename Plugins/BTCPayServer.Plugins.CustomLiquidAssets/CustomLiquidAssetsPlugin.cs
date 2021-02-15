@@ -72,7 +72,7 @@ namespace BTCPayServer.Plugins.CustomLiquidAssets
 
     public class BTCPayNetworkProviderOverride : BTCPayNetworkProvider
     {
-        public BTCPayNetworkProviderOverride(NetworkType networkType,
+        public BTCPayNetworkProviderOverride(ChainName networkType,
             IEnumerable<ElementsBTCPayNetwork> elementsBTCPayNetworks) : base(networkType)
         {
             foreach (ElementsBTCPayNetwork elementsBTCPayNetwork in elementsBTCPayNetworks)
