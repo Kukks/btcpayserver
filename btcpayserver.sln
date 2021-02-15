@@ -36,8 +36,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Plugins", "Plugins", "{1FC7
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BTCPayServer.PluginPacker", "BTCPayServer.PluginPacker\BTCPayServer.PluginPacker.csproj", "{7DC94B25-1CFC-4170-AA41-7BA983E4C0B8}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BTCPayServer.Plugins.CustomLiquidAssets", "Plugins\BTCPayServer.Plugins.CustomLiquidAssets\BTCPayServer.Plugins.CustomLiquidAssets.csproj", "{CFA856AB-D520-49DF-B771-9EB73D5A930C}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BTCPayServer.Plugins.CustomLiquidAssets", "Plugins\BTCPayServer.Plugins.CustomLiquidAssets\BTCPayServer.Plugins.CustomLiquidAssets.csproj", "{4C4FBCE4-D634-4D5F-87E7-5883BB252509}"
 EndProject
 Global
@@ -272,30 +270,6 @@ Global
 		{7DC94B25-1CFC-4170-AA41-7BA983E4C0B8}.Release|x64.Build.0 = Release|Any CPU
 		{7DC94B25-1CFC-4170-AA41-7BA983E4C0B8}.Release|x86.ActiveCfg = Release|Any CPU
 		{7DC94B25-1CFC-4170-AA41-7BA983E4C0B8}.Release|x86.Build.0 = Release|Any CPU
-		{CFA856AB-D520-49DF-B771-9EB73D5A930C}.Altcoins-Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{CFA856AB-D520-49DF-B771-9EB73D5A930C}.Altcoins-Debug|Any CPU.Build.0 = Debug|Any CPU
-		{CFA856AB-D520-49DF-B771-9EB73D5A930C}.Altcoins-Debug|x64.ActiveCfg = Debug|Any CPU
-		{CFA856AB-D520-49DF-B771-9EB73D5A930C}.Altcoins-Debug|x64.Build.0 = Debug|Any CPU
-		{CFA856AB-D520-49DF-B771-9EB73D5A930C}.Altcoins-Debug|x86.ActiveCfg = Debug|Any CPU
-		{CFA856AB-D520-49DF-B771-9EB73D5A930C}.Altcoins-Debug|x86.Build.0 = Debug|Any CPU
-		{CFA856AB-D520-49DF-B771-9EB73D5A930C}.Altcoins-Release|Any CPU.ActiveCfg = Debug|Any CPU
-		{CFA856AB-D520-49DF-B771-9EB73D5A930C}.Altcoins-Release|Any CPU.Build.0 = Debug|Any CPU
-		{CFA856AB-D520-49DF-B771-9EB73D5A930C}.Altcoins-Release|x64.ActiveCfg = Debug|Any CPU
-		{CFA856AB-D520-49DF-B771-9EB73D5A930C}.Altcoins-Release|x64.Build.0 = Debug|Any CPU
-		{CFA856AB-D520-49DF-B771-9EB73D5A930C}.Altcoins-Release|x86.ActiveCfg = Debug|Any CPU
-		{CFA856AB-D520-49DF-B771-9EB73D5A930C}.Altcoins-Release|x86.Build.0 = Debug|Any CPU
-		{CFA856AB-D520-49DF-B771-9EB73D5A930C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{CFA856AB-D520-49DF-B771-9EB73D5A930C}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{CFA856AB-D520-49DF-B771-9EB73D5A930C}.Debug|x64.ActiveCfg = Debug|Any CPU
-		{CFA856AB-D520-49DF-B771-9EB73D5A930C}.Debug|x64.Build.0 = Debug|Any CPU
-		{CFA856AB-D520-49DF-B771-9EB73D5A930C}.Debug|x86.ActiveCfg = Debug|Any CPU
-		{CFA856AB-D520-49DF-B771-9EB73D5A930C}.Debug|x86.Build.0 = Debug|Any CPU
-		{CFA856AB-D520-49DF-B771-9EB73D5A930C}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{CFA856AB-D520-49DF-B771-9EB73D5A930C}.Release|Any CPU.Build.0 = Release|Any CPU
-		{CFA856AB-D520-49DF-B771-9EB73D5A930C}.Release|x64.ActiveCfg = Release|Any CPU
-		{CFA856AB-D520-49DF-B771-9EB73D5A930C}.Release|x64.Build.0 = Release|Any CPU
-		{CFA856AB-D520-49DF-B771-9EB73D5A930C}.Release|x86.ActiveCfg = Release|Any CPU
-		{CFA856AB-D520-49DF-B771-9EB73D5A930C}.Release|x86.Build.0 = Release|Any CPU
 		{4C4FBCE4-D634-4D5F-87E7-5883BB252509}.Altcoins-Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{4C4FBCE4-D634-4D5F-87E7-5883BB252509}.Altcoins-Debug|Any CPU.Build.0 = Debug|Any CPU
 		{4C4FBCE4-D634-4D5F-87E7-5883BB252509}.Altcoins-Debug|x64.ActiveCfg = Debug|Any CPU
