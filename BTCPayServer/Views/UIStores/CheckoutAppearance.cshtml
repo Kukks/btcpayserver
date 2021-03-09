@@ -112,7 +112,7 @@
             const { theme } = e.target.dataset;
             document.getElementById('CustomCSS').value = ['dark', 'legacy'].includes(theme)
                 ? `/checkout/css/themes/${theme}.css`
-                : ''
+                : theme
         });
     </script>
 }
