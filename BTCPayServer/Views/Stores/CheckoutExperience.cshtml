@@ -126,13 +126,17 @@
                     | <a href="#" onclick="return setTheme(2);">Dark</a>
                     @* | <a href="#" onclick="return setTheme(0);">Default</a>*@
                 </p>
+                <vc:ui-extension-point location="invoice-checkout-theme-options"></vc:ui-extension-point>
                 <script type="text/javascript">
                     function setTheme(themeChoice) {
                         if (themeChoice === 1) { // reserving 0 for potential clear down the road
                             $('#CustomCSS').val('/checkout/css/themes/legacy.css');
                         } else if (themeChoice == 2) {
                             $('#CustomCSS').val('/checkout/css/themes/dark.css');
-                        } else {
+                        } else if (typeof (themeChoice) == "string"){                            
+                            $('#CustomCSS').val(themeChoice);
+                        }
+                        else {
                             $('#CustomCSS').val('');
                         }
                         return false;
