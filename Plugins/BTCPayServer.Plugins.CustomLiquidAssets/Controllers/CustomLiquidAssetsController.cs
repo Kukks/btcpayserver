@@ -80,7 +80,7 @@ namespace BTCPayServer.Plugins.CustomLiquidAssets.Controllers
                         DisplayName = data["name"].Value<string>(),
                         Divisibility = data["precision"].Value<int>(),
                         AssetId = data["asset_id"].Value<string>(),
-                        CryptoCode = data["ticker"].Value<string>()
+                        CryptoCode = data["ticker"].Value<string>().Replace("-", "").Replace("_", "")
                     });
                 }
                 catch (Exception)
