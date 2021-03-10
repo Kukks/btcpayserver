@@ -39,7 +39,9 @@ namespace BTCPayServer.Plugins.CustomLiquidAssets
                     var template = networkProvider.GetNetwork<ElementsBTCPayNetwork>("LBTC");
                     var additionalNetworks = settings.Items.Select(configuration => new ElementsBTCPayNetwork()
                     {
-                        CryptoCode = configuration.CryptoCode,
+                        CryptoCode = configuration.CryptoCode
+                            .Replace("-", "")
+                            .Replace("_", ""),
                         DefaultRateRules = configuration.DefaultRateRules ?? Array.Empty<string>(),
                         AssetId = uint256.Parse(configuration.AssetId),
                         Divisibility = configuration.Divisibility,
