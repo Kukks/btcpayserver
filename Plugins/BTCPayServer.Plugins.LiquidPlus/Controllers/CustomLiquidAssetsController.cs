@@ -15,7 +15,7 @@ using Newtonsoft.Json.Linq;
 
 namespace BTCPayServer.Plugins.CustomLiquidAssets.Controllers
 {
-    [Route("plugins/custom-liquid-assets")]
+    [Route("plugins/liquid/admin-settings")]
     [Authorize(Policy = BTCPayServer.Client.Policies.CanModifyServerSettings,
         AuthenticationSchemes = AuthenticationSchemes.Cookie)]
     public class CustomLiquidAssetsController : Controller
