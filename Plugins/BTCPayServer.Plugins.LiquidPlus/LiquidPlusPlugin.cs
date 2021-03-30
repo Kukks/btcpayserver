@@ -12,15 +12,16 @@ using NBitcoin;
 
 namespace BTCPayServer.Plugins.CustomLiquidAssets
 {
-    public class CustomLiquidAssetsPlugin : BaseBTCPayServerPlugin
+    public class LiquidPlusPlugin : BaseBTCPayServerPlugin
     {
-        public override string Identifier { get; } = "BTCPayServer.Plugins.CustomLiquidAssets";
-        public override string Name { get; } = "Custom Liquid Assets";
-        public override string Description { get; } = "Allows you to add support for custom liquid assets.";
+        public override string Identifier { get; } = "BTCPayServer.Plugins.LiquidPlus";
+        public override string Name { get; } = "Liquid+";
+        public override string Description { get; } = "Enhanced support for the liquid network.";
 
         public override void Execute(IServiceCollection services)
         {
             services.AddSingleton<IUIExtension>(new UIExtension("CustomLiquidAssetsNavExtension", "server-nav"));
+            services.AddSingleton<IUIExtension>(new UIExtension("StoreLiquidNavExtension", "store-nav"));
             services.AddSingleton<CustomLiquidAssetsRepository>();
 
             var originalImplementationFactory = services.Single(descriptor =>
@@ -29,7 +30,7 @@ namespace BTCPayServer.Plugins.CustomLiquidAssets
             services.Replace(ServiceDescriptor.Singleton(provider =>
             {
                 var _customLiquidAssetsRepository = provider.GetService<CustomLiquidAssetsRepository>();
-                var _logger = provider.GetService<ILogger<CustomLiquidAssetsPlugin>>();
+                var _logger = provider.GetService<ILogger<LiquidPlusPlugin>>();
                 var networkProvider =
                     (originalImplementationFactory.ImplementationInstance ??
                      originalImplementationFactory.ImplementationFactory.Invoke(provider)) as BTCPayNetworkProvider;

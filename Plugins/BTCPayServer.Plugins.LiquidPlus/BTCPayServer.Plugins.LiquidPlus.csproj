@@ -7,6 +7,7 @@
     <AssemblyVersion>1.0.1</AssemblyVersion>
     <RazorLangVersion>3.0</RazorLangVersion>
     <PackageVersion>1.0.1</PackageVersion>
+    <RootNamespace>BTCPayServer.Plugins.CustomLiquidAssets</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
@@ -14,9 +15,5 @@
     <ProjectReference Include="..\..\BTCPayServer.Client\BTCPayServer.Client.csproj" />
     <ProjectReference Include="..\..\BTCPayServer.Common\BTCPayServer.Common.csproj" />
     <EmbeddedResource Include="Resources\**" />
-  </ItemGroup>
-  <ItemGroup>
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="3.1.4">
-    </PackageReference>
   </ItemGroup>
 </Project>
