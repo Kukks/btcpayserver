@@ -21,7 +21,7 @@ namespace BTCPayServer.Plugins.CustomLiquidAssets
         public override void Execute(IServiceCollection services)
         {
             services.AddSingleton<IUIExtension>(new UIExtension("CustomLiquidAssetsNavExtension", "server-nav"));
-            services.AddSingleton<IUIExtension>(new UIExtension("StoreLiquidNavExtension", "store-nav"));
+            services.AddSingleton<IUIExtension>(new UIExtension("StoreNavLiquidExtension",  "store-nav"));
             services.AddSingleton<CustomLiquidAssetsRepository>();
 
             var originalImplementationFactory = services.Single(descriptor =>
