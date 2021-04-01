@@ -16,6 +16,14 @@ namespace BTCPayServer.Plugins.CustomLiquidAssets
     {
         public override string Identifier { get; } = "BTCPayServer.Plugins.LiquidPlus";
         public override string Name { get; } = "Liquid+";
+        public override IBTCPayServerPlugin.PluginDependency[] Dependencies { get; } = new[]
+        {
+            new IBTCPayServerPlugin.PluginDependency()
+            {
+                Identifier = nameof(BTCPayServer),
+                Condition = ">=1.0.8.0"
+            }
+        };
         public override string Description { get; } = "Enhanced support for the liquid network.";
 
         public override void Execute(IServiceCollection services)
@@ -59,7 +67,12 @@ namespace BTCPayServer.Plugins.CustomLiquidAssets
                         WalletSupported = template.WalletSupported,
                         LightningImagePath = "",
                         NBXplorerNetwork = template.NBXplorerNetwork,
-                        CoinType = template.CoinType
+                        CoinType = template.CoinType,
+                        UriScheme = template.UriScheme,
+                        VaultSupported = template.VaultSupported,
+                        MaxTrackedConfirmation = template.MaxTrackedConfirmation,
+                        BlockExplorerLinkDefault = template.BlockExplorerLinkDefault,
+                        SupportRBF = template.SupportRBF
                     });
                     var newCryptoCodes = settings.Items.Select(configuration => configuration.CryptoCode).ToArray();
                     _logger.LogInformation($"Loaded {newCryptoCodes.Length} " +
