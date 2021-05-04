@@ -16,7 +16,7 @@ namespace BTCPayServer.Fido2
 
         private string GetCacheKey(string userId)
         {
-            return $"{nameof(UserLoginCodeService)}_{userId}";
+            return $"{nameof(UserLoginCodeService)}_{userId.ToLowerInvariant()}";
         }
 
         public string GetOrGenerate(string userId)
@@ -30,7 +30,7 @@ namespace BTCPayServer.Fido2
 
         public bool Verify(string userId, string code)
         {
-            if (!_memoryCache.TryGetValue(GetCacheKey(userId), out var userCode) || userCode.Equals(code)) return false;
+            if (!_memoryCache.TryGetValue(GetCacheKey(userId), out var userCode) || !userCode.Equals(code)) return false;
             _memoryCache.Remove(GetCacheKey(userId));
             return true;
         }
