@@ -1,0 +1,30 @@
+@model string
+@{
+    ViewData.SetActivePageAndTitle(ManageNavPages.LoginCodes, "Login codes");
+}
+
+<p>
+    You may use these codes as a replacement to multi factor authentication for certain scenarios:
+    <ul>
+        <li>
+            Logging in on a device when FIDO2 has been configured for specific platforms only
+        </li>
+        <li>
+            Logging in on another device while being next to another authenticated device
+        </li>
+    </ul>
+
+</p>
+<div class="row mt-4">
+    <div class="col-md-12">
+        <div class="qr-container my-3">
+            <vc:qr-code data="@Model"> </vc:qr-code>
+        </div>
+        <div class="input-group  d-flex" data-clipboard="@Model">
+            <input type="text" class="form-control" style="cursor: copy" readonly="readonly" value="@Model"/>
+            <div class="input-group-append">
+                <button type="button" class="btn btn-outline-secondary" data-clipboard-confirm>Copy</button>
+            </div>
+        </div>
+    </div>
+</div>
