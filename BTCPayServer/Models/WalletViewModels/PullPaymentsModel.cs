@@ -49,5 +49,8 @@ namespace BTCPayServer.Models.WalletViewModels
         public string CustomCSSLink { get; set; }
         [Display(Name = "Custom CSS Code")]
         public string EmbeddedCSS { get; set; }
+
+        public IEnumerable<string> PaymentMethods { get; set; }
+        public IEnumerable<SelectListItem> PaymentMethodItems { get; set; }
     }
 }

@@ -22,17 +22,27 @@
     }
 }
 
-@section PageFootContent {
-    <script>
-        function selectAll(e, elementClass)
-        {
-            const items = document.getElementsByClassName("selection-item-"+elementClass);
-            for (let i = 0; i < items.length; i++) {
-                items[i].checked = e.checked;
+<form method="post" asp-action="Payouts">
+
+    <input type="hidden" asp-for="PaymentMethodId"/>
+    @if (!Model.PayoutStateSets.Any())
+    {
+        <p class="text-secondary mt-3">
+            There are no payouts yet.
+        </p>
+    }
+    <div class="row">
+        <ul class="nav nav-pills">
+            @for (var index = 0; index < Model.PayoutStateSets.Count; index++)
+            {
+                var state = Model.PayoutStateSets[index];
+                var stateClass = $"{Model.PaymentMethodId}-{Model.PayoutStateSets[index].State}";
+                <li class="nav-item py-0">
+                    <a class="nav-link me-1 @(index == 0 ? "active" : "")" data-bs-toggle="tab" href="#@stateClass" role="tab">@state.State.GetStateString() (@state.Payouts.Count)</a>
+                </li>
             }
-        }
-    </script>
-}
+        </ul>
+    </div>
 
 <form method="post">
     <input type="hidden" asp-for="PaymentMethodId"/>

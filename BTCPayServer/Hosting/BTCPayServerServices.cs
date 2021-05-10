@@ -10,6 +10,7 @@ using BTCPayServer.Abstractions.Models;
 using BTCPayServer.Configuration;
 using BTCPayServer.Controllers;
 using BTCPayServer.Data;
+using BTCPayServer.Data.Payouts.LightningLike;
 using BTCPayServer.HostedServices;
 using BTCPayServer.Lightning;
 using BTCPayServer.Logging;
@@ -319,6 +320,7 @@ namespace BTCPayServer.Hosting
             
 
             services.AddSingleton<IPayoutHandler, BitcoinLikePayoutHandler>();
+            services.AddSingleton<IPayoutHandler, LightningLikePayoutHandler>();
             services.AddSingleton<HostedServices.PullPaymentHostedService>();
             services.AddSingleton<IHostedService, HostedServices.PullPaymentHostedService>(o => o.GetRequiredService<PullPaymentHostedService>());
 
