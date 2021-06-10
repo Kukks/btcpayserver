@@ -16,6 +16,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using NBitcoin;
+using Newtonsoft.Json.Linq;
 using InvoiceData = BTCPayServer.Client.Models.InvoiceData;
 using NotificationData = BTCPayServer.Client.Models.NotificationData;
 using PaymentRequestData = BTCPayServer.Client.Models.PaymentRequestData;
@@ -833,6 +834,31 @@ namespace BTCPayServer.Controllers.GreenField
         public override async Task DeleteUser(string userId, CancellationToken token = default)
         {
             HandleActionResult(await _usersController.DeleteUser(userId));
+        }
+
+        public override async Task<Dictionary<string, JToken>> GetStoreAdditionalData(string storeId, CancellationToken token = default)
+        {
+            return GetFromActionResult<Dictionary<string, JToken>>(await _storesController.GetStoreAdditionalData(storeId));
+        }
+
+        public override async Task<JToken> GetStoreAdditionalDataKey(string storeId, string dataKey, CancellationToken token = default)
+        {
+            return GetFromActionResult<JToken>(await _storesController.GetStoreAdditionalDataKey(storeId,dataKey));
+        }
+
+        public override async Task UpdateStoreAdditionalDataKey(string storeId, string dataKey, JToken data, CancellationToken token = default)
+        {
+            HandleActionResult(await _storesController.UpdateStoreAdditionalDataKey(storeId,dataKey, data));
+        }
+
+        public override async Task RemoveStoreAdditionalDataKey(string storeId, string dataKey, CancellationToken token = default)
+        {
+            HandleActionResult(await _storesController.RemoveStoreAdditionalDataKey(storeId,dataKey));
+        }
+
+        public override async Task<InvoiceData> AdminGetInvoice(string invoiceId, CancellationToken token = default)
+        {
+            return GetFromActionResult<InvoiceData>(await _greenFieldInvoiceController.AdminGetInvoice(invoiceId));
         }
     }
 }
