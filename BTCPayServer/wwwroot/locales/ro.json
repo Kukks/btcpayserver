@@ -44,7 +44,6 @@
   "Node Info": "Info nod",
   "txCount": "{{count}} tranzacție",
   "txCount_plural": "{{count}} tranzacții",
-  "Pay with CoinSwitch": "Plătiți cu CoinSwitch",
   "Pay with Changelly": "Platiți cu Changelly",
   "Close": "Închideți",
   "NotPaid_ExtraTransaction": "Factura nu a fost achitată integral. Vă rugăm să trimiteți o altă plată pentru a acoperi suma datorată.",

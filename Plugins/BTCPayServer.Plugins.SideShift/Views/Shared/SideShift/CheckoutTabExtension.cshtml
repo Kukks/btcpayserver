@@ -1,0 +1,13 @@
+@using BTCPayServer.Plugins.SideShift
+@using Microsoft.AspNetCore.Routing
+@inject SideShiftService SideShiftService
+@{
+    var invoiceId = this.Context.GetRouteValue("invoiceId")?.ToString();
+    var settings = await SideShiftService.GetSideShiftForInvoice(invoiceId);
+}
+@if (settings?.Enabled is true)
+{
+    <div class="payment-tabs__tab" id="sideshift-tab" v-on:click="switchTab('sideshift')" v-bind:class="{ 'active': currentTab == 'sideshift'}">
+        <span>{{$t("Conversion")}}</span>
+    </div>
+}

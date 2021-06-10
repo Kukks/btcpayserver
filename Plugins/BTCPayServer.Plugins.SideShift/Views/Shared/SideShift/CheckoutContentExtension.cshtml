@@ -1,0 +1,31 @@
+@using BTCPayServer.Plugins.SideShift
+@using Microsoft.AspNetCore.Routing
+@inject SideShiftService SideShiftService
+@{
+    var invoiceId = this.Context.GetRouteValue("invoiceId")?.ToString();
+    var settings = await SideShiftService.GetSideShiftForInvoice(invoiceId);
+    if (settings?.Enabled is true)
+    {
+        <div id="sideshift" class="bp-view payment manual-flow" v-bind:class="{ 'active': currentTab == 'sideshift'}">
+            <nav>
+                <div class="manual__step-two__instructions">
+                    <span>
+                        {{$t("ConversionTab_BodyTop", srvModel)}}
+                        <br/><br/>
+                        {{$t("ConversionTab_BodyDesc", srvModel)}}
+                    </span>
+                </div>
+                <center>
+                        <SideShift inline-template
+                                    :to-currency="srvModel.paymentMethodId"
+                                    :to-currency-due="srvModel.btcDue * (1 + (@settings.AmountMarkupPercentage / 100)) "
+                                    :to-currency-address="srvModel.btcAddress">
+                            <div>
+                                <a v-on:click="openDialog($event)" :href="url" class="action-button" v-show="url && !opened">{{$t("Pay with SideShift")}}</a>
+                            </div>
+                        </SideShift>
+                </center>
+            </nav>
+        </div>
+    }
+}
