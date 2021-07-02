@@ -359,12 +359,12 @@ namespace BTCPayServer.Controllers
         [HttpGet("{walletId}/payouts")]
         public async Task<IActionResult> Payouts(
             [ModelBinder(typeof(WalletIdModelBinder))]
-            WalletId walletId, string pullPaymentId, PayoutState payoutState,
+            WalletId walletId, string pullPaymentId, string paymentMethodId, PayoutState payoutState,
             int skip = 0, int count = 50)
         {
             var vm = this.ParseListQuery(new PayoutsModel
             {
-                PaymentMethodId = new PaymentMethodId(walletId.CryptoCode, PaymentTypes.BTCLike),
+                PaymentMethodId = paymentMethodId??  new PaymentMethodId(walletId.CryptoCode, PaymentTypes.BTCLike).ToString(),
                 PullPaymentId = pullPaymentId, 
                 PayoutState =  payoutState,
                 Skip = skip,

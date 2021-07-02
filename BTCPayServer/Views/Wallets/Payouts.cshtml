@@ -4,8 +4,9 @@
 @inject IEnumerable<IPayoutHandler> PayoutHandlers;
 @{
     Layout = "../Shared/_NavLayout.cshtml";
-    ViewData.SetActivePageAndTitle(WalletsNavPages.Payouts, $"Manage {Model.PaymentMethodId.ToPrettyString()} payouts{(string.IsNullOrEmpty(Model.PullPaymentName) ? string.Empty : " for pull payment " + Model.PullPaymentName)}", Context.GetStoreData().StoreName);
-
+    ViewData.SetActivePageAndTitle(WalletsNavPages.Payouts, $"Manage payouts{(string.IsNullOrEmpty(Model.PullPaymentName) ? string.Empty : " for pull payment " + Model.PullPaymentName)}", Context.GetStoreData().StoreName);
+    var paymentMethods = PayoutHandlers.SelectMany(handler => handler.GetSupportedPaymentMethods());
+    
     var stateActions = new List<(string Action, string Text)>();
     switch (Model.PayoutState)
     {
@@ -22,28 +23,6 @@
     }
 }
 
-<form method="post" asp-action="Payouts">
-
-    <input type="hidden" asp-for="PaymentMethodId"/>
-    @if (!Model.PayoutStateSets.Any())
-    {
-        <p class="text-secondary mt-3">
-            There are no payouts yet.
-        </p>
-    }
-    <div class="row">
-        <ul class="nav nav-pills">
-            @for (var index = 0; index < Model.PayoutStateSets.Count; index++)
-            {
-                var state = Model.PayoutStateSets[index];
-                var stateClass = $"{Model.PaymentMethodId}-{Model.PayoutStateSets[index].State}";
-                <li class="nav-item py-0">
-                    <a class="nav-link me-1 @(index == 0 ? "active" : "")" data-bs-toggle="tab" href="#@stateClass" role="tab">@state.State.GetStateString() (@state.Payouts.Count)</a>
-                </li>
-            }
-        </ul>
-    </div>
-
 <form method="post">
     <input type="hidden" asp-for="PaymentMethodId"/>
     <input type="hidden" asp-for="PayoutState"/>
@@ -51,14 +30,36 @@
 
     <div class="row">
         <div class="col-auto">
-            <ul class="nav nav-pills">
-                @foreach (var state in Model.PayoutStateCount)
+            <ul class="nav nav-pills  bg-tile mb-2" style="border-radius:4px; border: 1px solid var(--btcpay-body-border-medium)">
+                @foreach (var state in paymentMethods)
                 {
                     <li class="nav-item py-0">
-                        <a id="@state.Key-view" asp-action="Payouts" asp-route-walletId="@Context.GetRouteValue("walletId")" asp-route-payoutState="@state.Key" asp-route-pullPaymentId="@Model.PullPaymentId" class="nav-link me-1 @(state.Key == Model.PayoutState ? "active" : "")" role="tab">@state.Key.GetStateString() (@state.Value)</a>
+                        <a asp-action="Payouts" asp-route-walletId="@Context.GetRouteValue("walletId")"
+                           asp-route-payoutState="@Model.PayoutState"
+                           asp-route-paymentMethodId="@state.ToString()"
+                           asp-route-pullPaymentId="@Model.PullPaymentId"
+                           class="nav-link me-1 @(state.ToString() == Model.PaymentMethodId ? "active" : "")"
+                           role="tab">
+                            @state.ToPrettyString()
+                        </a>
                     </li>
                 }
             </ul>
+            <ul class="nav nav-pills  bg-tile" style="border: 1px solid var(--btcpay-body-border-medium)">
+                @foreach (var state in Model.PayoutStateCount)
+                {
+                    <li class="nav-item py-0">
+                        <a id="@state.Key-view" 
+                           asp-action="Payouts" 
+                           asp-route-walletId="@Context.GetRouteValue("walletId")" 
+                           asp-route-payoutState="@state.Key" 
+                           asp-route-pullPaymentId="@Model.PullPaymentId" 
+                           asp-route-paymentMethodId="@Model.PaymentMethodId"
+                           class="nav-link me-1 @(state.Key == Model.PayoutState ? "active" : "")" role="tab">@state.Key.GetStateString() (@state.Value)</a>
+                    </li>
+                }
+            </ul>
+           
         </div>
         @if (Model.Payouts.Any() && stateActions.Any())
         {
