@@ -79,10 +79,9 @@
 
     <div class="row">
 
-        <div>
             @if (Model.Payouts.Any())
             {
-                <table class="table table-sm table-responsive-lg">
+                <table  class="table table-sm table-responsive-md col-12">
                     <thead class="thead-inverse">
                     <tr>
                         <th>
@@ -117,8 +116,8 @@
                             <td class="mw-100">
                                 <span>@pp.PullPaymentName</span>
                             </td>
-                            <td>
-                                <span>@pp.Destination</span>
+                            <td  title="@pp.Destination">
+                                <span class="text-break">@pp.Destination</span>
                             </td>
                             <td class="text-end">
                                 <span>@pp.Amount</span>
@@ -141,7 +140,6 @@
             {
                 <p class="mb-0 py-4" id="@Model.PayoutState-no-payouts">There are no payouts matching this criteria.</p>
             }
-        </div>
         <vc:pager view-model="Model"/>
     </div>
 </form>
