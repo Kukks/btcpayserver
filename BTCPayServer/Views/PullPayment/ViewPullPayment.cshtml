@@ -1,4 +1,4 @@
-﻿@using NUglify.Helpers
+@using NUglify.Helpers
 @model BTCPayServer.Models.ViewPullPaymentModel
 
 @addTagHelper *, BundlerMinifier.TagHelpers
@@ -38,7 +38,6 @@
         <link href="@Model.CustomCSSLink" rel="stylesheet" />
     }
     @Safe.Raw(Model.EmbeddedCSS)
-    <script src="~/js/copy-to-clipboard.js" asp-append-version="true"></script>
     <noscript>
         <style>
             .hide-when-js, [v-cloak] { display: block !important; }
@@ -196,6 +195,8 @@
             </div>
         </footer>
     </div>
+    <partial name="LayoutFoot" />
+    <script src="~/js/copy-to-clipboard.js" asp-append-version="true"></script>
     <script>
         document.getElementById("copyLink").addEventListener("click", window.copyUrlToClipboard);
     </script>
