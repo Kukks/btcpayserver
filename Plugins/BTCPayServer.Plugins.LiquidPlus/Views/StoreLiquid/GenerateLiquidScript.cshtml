@@ -1,13 +1,11 @@
-@using BTCPayServer.Views.Stores
-@model BTCPayServer.Controllers.StoreLiquidController.GenerateLiquidImportScripts
+
+@model BTCPayServer.Plugins.CustomLiquidAssets.Controllers.StoreLiquidController.GenerateLiquidImportScripts
 @{
     Layout = "../Shared/_NavLayout.cshtml";
     ViewData["NavPartialName"] = "../Stores/_Nav";
     ViewBag.MainTitle = "Store settings";
-    ViewData.SetActivePageAndTitle(StoreNavPages.ActivePage, "Liquid Import");
+    ViewData["title"] = "Liquid Import";
 }
-
-<partial name="_StatusMessage"/>
 
 <h4>Liquid import</h4>
 <div class="row">
@@ -32,7 +30,7 @@
                         <span> @x.CryptoCode</span>
                         @if (!x.KeyPresent)
                         {
-                            <input type="text" class="form-control form-control-sm ml-4" asp-for="Wallets[index].ManualKey" placeholder="Xprv (root or account) or seed"/>
+                            <input type="text" class="form-control form-control-sm ms-4" asp-for="Wallets[index].ManualKey" placeholder="Xprv (root or account) or seed"/>
                         }
                         else
                         {
@@ -59,7 +57,7 @@
                     {
                         <span>Nothing to generate</span>
                     }
-                    <pre>@Safe.Raw(script.Value)</pre>
+                    <pre>@Html.Raw(script.Value)</pre>
                 </li>
             }
         </ul>

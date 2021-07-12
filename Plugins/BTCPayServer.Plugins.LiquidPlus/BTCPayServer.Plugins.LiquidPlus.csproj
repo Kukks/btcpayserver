@@ -16,4 +16,7 @@
     <ProjectReference Include="..\..\BTCPayServer.Common\BTCPayServer.Common.csproj" />
     <EmbeddedResource Include="Resources\**" />
   </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="NBXplorer.Client" Version="3.0.21" />
+  </ItemGroup>
 </Project>
