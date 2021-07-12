@@ -9,8 +9,6 @@
     <div class="alert alert-warning">There are saved changes to the custom liquid assets that have not yet been applied. Restart BTCPay Server to load these changes.</div>
 }
 
-<partial name="_StatusMessage"/>
-
 <form class="form-group" asp-action="Assets" id="assetform">
     <div class="list-group list-group-flush">
         @if (!Model.Items.Any())
