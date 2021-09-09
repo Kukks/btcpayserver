@@ -21,7 +21,7 @@ namespace BTCPayServer.Plugins.CustomLiquidAssets
             new IBTCPayServerPlugin.PluginDependency()
             {
                 Identifier = nameof(BTCPayServer),
-                Condition = ">=1.0.8.0"
+                Condition = ">=1.2.2.0"
             }
         };
         public override string Description { get; } = "Enhanced support for the liquid network.";
