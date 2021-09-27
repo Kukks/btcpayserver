@@ -3,14 +3,14 @@ using System.Globalization;
 using System.Net.Http;
 using System.Threading.Tasks;
 using BTCPayServer.Abstractions.Constants;
-using BTCPayServer.Plugins.CustomLiquidAssets.Models;
-using BTCPayServer.Plugins.CustomLiquidAssets.Services;
+using BTCPayServer.Plugins.LiquidPlus.Models;
+using BTCPayServer.Plugins.LiquidPlus.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NBitcoin;
 using Newtonsoft.Json.Linq;
 
-namespace BTCPayServer.Plugins.CustomLiquidAssets.Controllers
+namespace BTCPayServer.Plugins.LiquidPlus.Controllers
 {
     [Route("plugins/liquid/admin-settings")]
     [Authorize(Policy = BTCPayServer.Client.Policies.CanModifyServerSettings,

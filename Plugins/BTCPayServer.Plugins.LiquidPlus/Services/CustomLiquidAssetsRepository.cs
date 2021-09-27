@@ -2,13 +2,13 @@ using System;
 using System.IO;
 using System.Threading.Tasks;
 using BTCPayServer.Configuration;
-using BTCPayServer.Plugins.CustomLiquidAssets.Models;
+using BTCPayServer.Plugins.LiquidPlus.Models;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
-namespace BTCPayServer.Plugins.CustomLiquidAssets.Services
+namespace BTCPayServer.Plugins.LiquidPlus.Services
 {
     public class CustomLiquidAssetsRepository
     {

@@ -6,17 +6,15 @@
     <GenerateEmbeddedFilesManifest>true</GenerateEmbeddedFilesManifest>
     <AssemblyVersion>1.0.1</AssemblyVersion>
     <RazorLangVersion>3.0</RazorLangVersion>
-    <PackageVersion>1.0.1</PackageVersion>
-    <RootNamespace>BTCPayServer.Plugins.CustomLiquidAssets</RootNamespace>
+    <PackageVersion>1.0.2</PackageVersion>
+    <LangVersion>9</LangVersion>
   </PropertyGroup>
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <ProjectReference Include="..\..\BTCPayServer.Abstractions\BTCPayServer.Abstractions.csproj" />
     <ProjectReference Include="..\..\BTCPayServer.Client\BTCPayServer.Client.csproj" />
-    <ProjectReference Include="..\..\BTCPayServer.Common\BTCPayServer.Common.csproj" />
     <EmbeddedResource Include="Resources\**" />
-  </ItemGroup>
-  <ItemGroup>
+    <ProjectReference Include="..\..\BTCPayServer.Common\BTCPayServer.Common.csproj" />
     <PackageReference Include="NBXplorer.Client" Version="4.1.2" />
   </ItemGroup>
 </Project>

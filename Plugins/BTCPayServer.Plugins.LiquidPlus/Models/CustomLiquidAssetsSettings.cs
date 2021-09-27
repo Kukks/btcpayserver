@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 
-namespace BTCPayServer.Plugins.CustomLiquidAssets.Models
+namespace BTCPayServer.Plugins.LiquidPlus.Models
 {
     public class CustomLiquidAssetsSettings
     {

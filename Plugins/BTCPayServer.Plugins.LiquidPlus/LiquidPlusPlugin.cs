@@ -4,13 +4,13 @@ using System.Linq;
 using BTCPayServer.Abstractions.Contracts;
 using BTCPayServer.Abstractions.Models;
 using BTCPayServer.Abstractions.Services;
-using BTCPayServer.Plugins.CustomLiquidAssets.Services;
+using BTCPayServer.Plugins.LiquidPlus.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 using NBitcoin;
 
-namespace BTCPayServer.Plugins.CustomLiquidAssets
+namespace BTCPayServer.Plugins.LiquidPlus
 {
     public class LiquidPlusPlugin : BaseBTCPayServerPlugin
     {

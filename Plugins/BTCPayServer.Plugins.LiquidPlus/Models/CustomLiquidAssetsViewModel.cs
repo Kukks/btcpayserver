@@ -1,4 +1,4 @@
-namespace BTCPayServer.Plugins.CustomLiquidAssets.Models
+namespace BTCPayServer.Plugins.LiquidPlus.Models
 {
     public class CustomLiquidAssetsViewModel: CustomLiquidAssetsSettings
     {
