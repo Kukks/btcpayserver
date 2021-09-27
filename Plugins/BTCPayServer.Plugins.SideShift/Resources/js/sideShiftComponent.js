@@ -1,4 +1,4 @@
-Vue.component("SideShift" , 
+Vue.component("SideShift",
     {
         props: ["toCurrency", "toCurrencyDue", "toCurrencyAddress"],
         methods: {
@@ -7,12 +7,13 @@ Vue.component("SideShift" ,
                     e.preventDefault();
                 }
                 window.__SIDESHIFT__ = {
-                    parentAffiliateId: YourAffiliateId,
+                    parentAffiliateId: "qg0OrfHJV",
                     defaultSettleMethodId: this.toCurrency,
                     settleAddress: this.toCurrencyAddress,
-                    settleAmount: this.toCurrencyDue,
-                    type: "fixed"
+                    settleAmount:!this.$parent.srvModel.isUnsetTopUp?  this.toCurrencyDue: undefined``,
+                    type: !this.$parent.srvModel.isUnsetTopUp? "fixed": undefined
                 };
+                window.sideshift.show();
             }
         }
     });

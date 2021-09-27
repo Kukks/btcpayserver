@@ -2,12 +2,13 @@
 @using BTCPayServer.Plugins.SideShift
 @using Microsoft.AspNetCore.Routing
 @inject BTCPayServerClient  BTCPayServerClient
+@inject SideShiftService  SideShiftService
 @{
     var storeId = Context.GetRouteValue("storeId").ToString();
     SideShiftSettings settings = null;
     try
     {
-        settings = (await BTCPayServerClient.GetStoreAdditionalDataKey(storeId, SideShiftPlugin.StoreBlobKey)).ToObject<SideShiftSettings>();
+        settings = await SideShiftService.GetSideShiftForStore(storeId);
     }
     catch (Exception e)
     {

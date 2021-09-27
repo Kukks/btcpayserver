@@ -2,48 +2,29 @@ using System;
 using System.Threading.Tasks;
 using BTCPayServer.Abstractions.Contracts;
 using BTCPayServer.Client;
-using Microsoft.Extensions.Caching.Memory;
 
 namespace BTCPayServer.Plugins.SideShift
 {
-    public class SideShiftService: IDisposable
+    public class SideShiftService
     {
-        private readonly IBTCPayServerClientFactory _btcPayServerClientFactory;
-        private readonly IMemoryCache _memoryCache;
+        private readonly ISettingsRepository _settingsRepository;
         private BTCPayServerClient _client;
 
-        public SideShiftService(IBTCPayServerClientFactory btcPayServerClientFactory,IMemoryCache memoryCache)
+        public SideShiftService(ISettingsRepository settingsRepository)
         {
-            _btcPayServerClientFactory = btcPayServerClientFactory;
-            _memoryCache = memoryCache;
-        }
-        
-        public async Task<SideShiftSettings> GetSideShiftForInvoice(string id)
-        {
-
-            _client ??= await _btcPayServerClientFactory.Create("");
-            return await _memoryCache.GetOrCreateAsync<SideShiftSettings>($"{nameof(SideShiftService)}-{id}", async entry =>
-            {
-                try
-                {
-
-                    var i = await _client.AdminGetInvoice(id);
-                }
-                catch (Exception e)
-                {
-                    return null;
-                }
-                entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(1);
-                return new SideShiftSettings() { Enabled = true };
-                // var d = await _storeRepository.GetStoreByInvoiceId(id);
-                //
-                // return d?.GetStoreBlob()?.GetSideShiftSettings();
-            });
+            _settingsRepository = settingsRepository;
         }
 
-        public void Dispose()
+
+        public async Task<SideShiftSettings> GetSideShiftForStore(string storeId)
         {
-            _memoryCache?.Dispose();
+            return await _settingsRepository.GetSettingAsync<SideShiftSettings>(
+                $"{nameof(SideShiftSettings)}_{storeId}");
+        }
+
+        public async Task SetSideShiftForStore(string storeId, SideShiftSettings sideShiftSettings)
+        {
+            await _settingsRepository.UpdateSetting(sideShiftSettings, $"{nameof(SideShiftSettings)}_{storeId}");
         }
     }
 }

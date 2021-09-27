@@ -14,10 +14,12 @@ namespace BTCPayServer.Plugins.SideShift
     public class SideShiftController : Controller
     {
         private readonly BTCPayServerClient _btcPayServerClient;
+        private readonly SideShiftService _sideShiftService;
 
-        public SideShiftController(BTCPayServerClient btcPayServerClient)
+        public SideShiftController(BTCPayServerClient btcPayServerClient, SideShiftService sideShiftService)
         {
             _btcPayServerClient = btcPayServerClient;
+            _sideShiftService = sideShiftService;
         }
 
         [HttpGet("")]
@@ -30,8 +32,7 @@ namespace BTCPayServer.Plugins.SideShift
             SideShiftSettings SideShift = null;
             try
             {
-                SideShift = (await _btcPayServerClient.GetStoreAdditionalDataKey(storeId, SideShiftPlugin.StoreBlobKey))
-                    .ToObject<SideShiftSettings>();
+                SideShift = await _sideShiftService.GetSideShiftForStore(storeId);
             }
             catch (Exception e)
             {
@@ -53,7 +54,6 @@ namespace BTCPayServer.Plugins.SideShift
         public async Task<IActionResult> UpdateSideShiftSettings(string storeId, UpdateSideShiftSettingsViewModel vm,
             string command)
         {
-            var store = await _btcPayServerClient.GetStore(storeId);
             if (vm.Enabled)
             {
                 if (!ModelState.IsValid)
@@ -70,8 +70,7 @@ namespace BTCPayServer.Plugins.SideShift
             switch (command)
             {
                 case "save":
-                    await _btcPayServerClient.UpdateStoreAdditionalDataKey(storeId, SideShiftPlugin.StoreBlobKey,
-                        JObject.FromObject(sideShiftSettings));
+                    await _sideShiftService.SetSideShiftForStore(storeId, sideShiftSettings);
                     TempData["SuccessMessage"] = "SideShift settings modified";
                     return RedirectToAction(nameof(UpdateSideShiftSettings), new {storeId});
 

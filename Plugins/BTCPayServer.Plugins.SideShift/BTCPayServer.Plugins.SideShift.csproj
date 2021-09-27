@@ -20,7 +20,7 @@
     <Folder Include="Views\Shared"/>
   </ItemGroup>
   <ItemGroup>
-    <Content Include="Resources\js\SideShiftComponent.js">
+    <Content Include="Resources\js\sideShiftComponent.js">
       <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>

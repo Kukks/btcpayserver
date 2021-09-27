@@ -1,2 +1,6 @@
-<script src="~/checkout/js/SideShiftComponent.js"></script>
-<script src="https://sideshift.ai/static/js/main.js"></script>
+@inject BTCPayServer.Security.ContentSecurityPolicies csp
+@{
+    csp.Add("script-src", "https://sideshift.ai/static/js/main.js");
+}
+<script src="~/Resources/js/sideShiftComponent.js" ></script>
+<script src="https://sideshift.ai/static/js/main.js" defer></script>
