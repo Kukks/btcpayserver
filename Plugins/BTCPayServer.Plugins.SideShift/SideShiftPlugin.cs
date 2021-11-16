@@ -11,6 +11,15 @@ namespace BTCPayServer.Plugins.SideShift
         public override string Identifier => "BTCPayServer.Plugins.SideShift";
         public override string Name => "SideShift";
 
+        public override IBTCPayServerPlugin.PluginDependency[] Dependencies =>
+            new[]
+            {
+                new IBTCPayServerPlugin.PluginDependency()
+                {
+                    Condition = ">=1.3.4.0", Identifier = "BTCPayServer"
+                }
+            };
+
         public override string Description =>
             "Allows you to embed a SideShift conversion screen to allow customers to pay with altcoins.";
 

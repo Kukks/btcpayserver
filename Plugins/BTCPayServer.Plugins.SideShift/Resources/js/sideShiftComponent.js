@@ -8,7 +8,7 @@ Vue.component("SideShift",
                 }
                 window.__SIDESHIFT__ = {
                     parentAffiliateId: "qg0OrfHJV",
-                    defaultSettleMethodId: this.toCurrency,
+                    defaultSettleMethodId: this.toCurrency.toLowerCase(),
                     settleAddress: this.toCurrencyAddress,
                     settleAmount:!this.$parent.srvModel.isUnsetTopUp?  this.toCurrencyDue: undefined,
                     type: !this.$parent.srvModel.isUnsetTopUp? "fixed": undefined

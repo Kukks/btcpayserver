@@ -34,7 +34,7 @@ namespace BTCPayServer.Plugins.SideShift
             {
                 SideShift = await _sideShiftService.GetSideShiftForStore(storeId);
             }
-            catch (Exception e)
+            catch (Exception)
             {
                 // ignored
             }

@@ -8,7 +8,6 @@ namespace BTCPayServer.Plugins.SideShift
     public class SideShiftService
     {
         private readonly ISettingsRepository _settingsRepository;
-        private BTCPayServerClient _client;
 
         public SideShiftService(ISettingsRepository settingsRepository)
         {

@@ -8,16 +8,16 @@
 
   </PropertyGroup>
   <ItemGroup>
-    <FrameworkReference Include="Microsoft.AspNetCore.App"/>
-    <ProjectReference Include="..\..\BTCPayServer.Abstractions\BTCPayServer.Abstractions.csproj"/>
-    <EmbeddedResource Include="Resources\**"/>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <ProjectReference Include="..\..\BTCPayServer.Abstractions\BTCPayServer.Abstractions.csproj" />
+    <EmbeddedResource Include="Resources\**" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="3.1.4">
     </PackageReference>
   </ItemGroup>
   <ItemGroup>
-    <Folder Include="Views\Shared"/>
+    <Folder Include="Views\Shared" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="Resources\js\sideShiftComponent.js">
