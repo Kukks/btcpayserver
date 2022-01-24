@@ -16,13 +16,10 @@ namespace BTCPayServer.Plugins.LiquidPlus
     {
         public override string Identifier { get; } = "BTCPayServer.Plugins.LiquidPlus";
         public override string Name { get; } = "Liquid+";
-        public override IBTCPayServerPlugin.PluginDependency[] Dependencies { get; } = new[]
+
+        public override IBTCPayServerPlugin.PluginDependency[] Dependencies { get; } =
         {
-            new IBTCPayServerPlugin.PluginDependency()
-            {
-                Identifier = nameof(BTCPayServer),
-                Condition = ">1.2.4.0"
-            }
+            new IBTCPayServerPlugin.PluginDependency() { Identifier = nameof(BTCPayServer), Condition = ">=1.4.0.0" }
         };
         public override string Description { get; } = "Enhanced support for the liquid network.";
 
@@ -68,7 +65,6 @@ namespace BTCPayServer.Plugins.LiquidPlus
                         LightningImagePath = "",
                         NBXplorerNetwork = template.NBXplorerNetwork,
                         CoinType = template.CoinType,
-                        UriScheme = template.UriScheme,
                         VaultSupported = template.VaultSupported,
                         MaxTrackedConfirmation = template.MaxTrackedConfirmation,
                         BlockExplorerLinkDefault = template.BlockExplorerLinkDefault,

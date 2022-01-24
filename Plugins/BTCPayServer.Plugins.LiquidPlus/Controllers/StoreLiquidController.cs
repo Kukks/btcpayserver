@@ -67,6 +67,13 @@ namespace BTCPayServer.Plugins.LiquidPlus.Controllers
                 var sb = new StringBuilder();
 
                 var explorerClient = _explorerClientProvider.GetExplorerClient(der.Key);
+                var status = await explorerClient.GetStatusAsync();
+                if (status.BitcoinStatus is null)
+                {
+                    sb.AppendLine($"{der.Key} node is not available. Try again later.");
+                    generated.Add(der.Key, sb.ToString());
+                    continue;
+                }
                 var derivationSchemesForNetwork = der.GroupBy(data => data.DerivationScheme);
                 
                 foreach (var paymentMethodDerivationScheme in derivationSchemesForNetwork)

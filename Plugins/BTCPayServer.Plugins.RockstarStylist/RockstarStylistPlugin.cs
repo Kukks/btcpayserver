@@ -17,5 +17,11 @@ namespace BTCPayServer.Plugins.RockstarStylist
                 "invoice-checkout-theme-options"));
             services.AddSingleton<RockstarStyleProvider>();
         }
+        
+
+        public override IBTCPayServerPlugin.PluginDependency[] Dependencies { get; } =
+        {
+            new IBTCPayServerPlugin.PluginDependency() { Identifier = nameof(BTCPayServer), Condition = ">=1.4.0.0" }
+        };
     }
 }

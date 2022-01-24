@@ -11,7 +11,7 @@ namespace BTCPayServer.Plugins.BitcoinWhitepaper
 
         public override IBTCPayServerPlugin.PluginDependency[] Dependencies { get; } =
             {
-                new IBTCPayServerPlugin.PluginDependency() { Identifier = "BTCPayServer", Condition = ">=1.2.2.0" }
+                new IBTCPayServerPlugin.PluginDependency() { Identifier = nameof(BTCPayServer), Condition = ">=1.4.0.0" }
             };
     }
 }
