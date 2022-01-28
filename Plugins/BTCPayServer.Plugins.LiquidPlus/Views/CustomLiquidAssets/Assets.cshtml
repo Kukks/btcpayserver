@@ -4,7 +4,7 @@
 @model BTCPayServer.Plugins.LiquidPlus.Models.CustomLiquidAssetsViewModel
 @{
     Layout = "../Shared/_NavLayout.cshtml";
-    ViewData["NavPartialName"] = "../Server/_Nav";
+    ViewData["NavPartialName"] = "../UIServer/_Nav";
     ViewData["Title"] = "Custom Liquid Assets";
     var nonce = RandomUtils.GetUInt256().ToString().Substring(0, 32);
     contentSecurityPolicies.Add("script-src", $"'nonce-{nonce}'");
