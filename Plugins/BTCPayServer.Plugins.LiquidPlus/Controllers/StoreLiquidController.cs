@@ -41,13 +41,14 @@ namespace BTCPayServer.Plugins.LiquidPlus.Controllers
                 .GroupBy(network => network.NetworkCryptoCode);
             var allNetworkCodes = allNetworks
                 .SelectMany(networks => networks.Select(network => network.CryptoCode.ToUpperInvariant()))
-                .ToArray();
+                .ToArray()
+                .Distinct();
             Dictionary<string, BitcoinExtKey> privKeys = bitcoinExtKeys ?? new Dictionary<string, BitcoinExtKey>();
-
+            
+            
             var paymentMethods = (await _client.GetStoreOnChainPaymentMethods(storeId))
                 .Where(settings => allNetworkCodes.Contains(settings.CryptoCode))
-                .GroupBy(data =>
-                    allNetworks.First(networks => networks.Any(network => network.CryptoCode == data.CryptoCode)).Key);
+                .GroupBy(data => _btcPayNetworkProvider.GetNetwork<ElementsBTCPayNetwork>(data.CryptoCode).NetworkCryptoCode);
 
             if (paymentMethods.Any() is false)
             {

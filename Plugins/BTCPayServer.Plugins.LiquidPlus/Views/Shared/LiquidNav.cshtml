@@ -1,0 +1,22 @@
+@using BTCPayServer
+@using BTCPayServer.Plugins.LiquidPlus.Controllers
+@using Microsoft.AspNetCore.Routing
+
+@inject BTCPayNetworkProvider BTCPayNetworkProvider;
+
+@{
+    var storeId = Context.GetRouteValue("storeId")?.ToString();
+    
+    var controller = ViewContext.RouteData.Values["Controller"].ToString();
+    var isLiquid = nameof(StoreLiquidController).StartsWith(controller, StringComparison.InvariantCultureIgnoreCase);
+}
+@if (!string.IsNullOrEmpty(storeId) && (BTCPayNetworkProvider.GetAll().OfType<ElementsBTCPayNetwork>().Any()))
+{
+    <li class="nav-item">
+        <a asp-route-storeId="@storeId" asp-action="GenerateLiquidScript" asp-controller="StoreLiquid" class="nav-link js-scroll-trigger @(isLiquid ? "active" : string.Empty)">
+           <svg role="img" class="icon">
+                       </svg>
+            <span >Liquid+</span>
+        </a>
+    </li>
+}

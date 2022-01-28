@@ -28,13 +28,15 @@ namespace BTCPayServer.Plugins.SideShift
             applicationBuilder.AddSingleton<IUIExtension>(new UIExtension("SideShift/CheckoutContentExtension",
                 "checkout-bitcoin-post-content"));
             applicationBuilder.AddSingleton<IUIExtension>(new UIExtension("SideShift/CheckoutContentExtension",
-                "checkout-ethereum-post-content"));
+                "checkout-lightning-post-content"));
             applicationBuilder.AddSingleton<IUIExtension>(new UIExtension("SideShift/CheckoutTabExtension",
                 "checkout-bitcoin-post-tabs"));
             applicationBuilder.AddSingleton<IUIExtension>(new UIExtension("SideShift/CheckoutTabExtension",
-                "checkout-ethereum-post-tabs"));
+                "checkout-lightning-post-tabs"));
             applicationBuilder.AddSingleton<IUIExtension>(new UIExtension("SideShift/CheckoutEnd",
                 "checkout-end"));
+            applicationBuilder.AddSingleton<IUIExtension>(new UIExtension("SideShift/SideShiftNav",
+                "store-integrations-nav"));
             base.Execute(applicationBuilder);
         }
     }

@@ -9,7 +9,8 @@
     var settings = await SideShiftService.GetSideShiftForStore(storeId);
     if (settings?.Enabled is true)
     {
-        csp.Add("script-src", "https://sideshift.ai/static/js/main.js");
+        csp.Add("script-src", "https://sideshift.ai");
+        csp.Add("script-src", "*.sideshift.ai");
         <script src="~/Resources/js/sideShiftComponent.js"></script>
         <script src="https://sideshift.ai/static/js/main.js" defer></script>
     }
