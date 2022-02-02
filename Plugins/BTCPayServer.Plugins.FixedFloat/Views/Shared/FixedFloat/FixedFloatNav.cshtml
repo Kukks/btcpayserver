@@ -1,0 +1,19 @@
+@using BTCPayServer.Abstractions.Extensions
+@using BTCPayServer.Plugins.FixedFloat
+@using Microsoft.AspNetCore.Routing
+@{
+    var storeId = Context.GetRouteValue("storeId")?.ToString();
+    
+    var controller = ViewContext.RouteData.Values["Controller"].ToString();
+    var isActive = nameof(FixedFloatController).StartsWith(controller, StringComparison.InvariantCultureIgnoreCase);
+}
+@if (!string.IsNullOrEmpty(storeId))
+{
+    <li class="nav-item">
+        <a asp-area="" asp-controller="FixedFloat" asp-action="UpdateFixedFloatSettings" asp-route-storeId="@storeId" class="nav-link js-scroll-trigger @(isActive? "active": string.Empty)">
+            <svg role="img" class="icon">
+            </svg>
+            <span>FixedFloat</span>
+        </a>
+    </li>
+}

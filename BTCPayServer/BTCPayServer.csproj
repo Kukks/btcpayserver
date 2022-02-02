@@ -147,6 +147,7 @@
 	  <ProjectReference Include="..\BTCPayServer.Data\BTCPayServer.Data.csproj" />
 	  <ProjectReference Include="..\BTCPayServer.Rating\BTCPayServer.Rating.csproj" />
 	  <ProjectReference Include="..\BTCPayServer.Common\BTCPayServer.Common.csproj" />
+	  <ProjectReference Include="..\Plugins\BTCPayServer.Plugins.FixedFloat\BTCPayServer.Plugins.FixedFloat.csproj" />
 	  <ProjectReference Include="..\Plugins\BTCPayServer.Plugins.LiquidPlus\BTCPayServer.Plugins.LiquidPlus.csproj" />
 	  <ProjectReference Include="..\Plugins\BTCPayServer.Plugins.RockstarStylist\BTCPayServer.Plugins.RockstarStylist.csproj" />
 	  <ProjectReference Include="..\Plugins\BTCPayServer.Plugins.SideShift\BTCPayServer.Plugins.SideShift.csproj" />
