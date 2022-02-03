@@ -7,8 +7,8 @@
     var settings = await SideShiftService.GetSideShiftForStore(storeId);
     if (settings?.Enabled is true)
     {
-        <div class="payment-tabs__tab" id="sideshift-tab" v-on:click="switchTab('sideshift')" v-bind:class="{ 'active': currentTab == 'sideshift'}">
-            <span>{{$t("Conversion")}}</span>
+        <div class="payment-tabs__tab py-0" id="sideshift-tab" v-on:click="switchTab('sideshift')" v-bind:class="{ 'active': currentTab == 'sideshift'}" v-if="!srvModel.paymentMethodId.endsWith('LNURLPAY')">
+            <span>{{$t("Altcoins (SideShift)")}}</span>
         </div>
     }
 }

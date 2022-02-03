@@ -9,7 +9,6 @@ Vue.component("FixedFloat", {
     , computed: {
         url: function () {
             let settleMethodId = "";
-            let amount = !this.$parent.srvModel.isUnsetTopUp ? this.toCurrencyDue : undefined;
             if (this.toCurrency.endsWith('LightningLike')) {
                 settleMethodId = "BTCLN";
             } else {
@@ -17,10 +16,10 @@ Vue.component("FixedFloat", {
             }
             const topup = this.$parent.srvModel.isUnsetTopUp;
             return "https://widget.fixedfloat.com/?" +
-                "to=" +settleMethodId + 
+                `to=${settleMethodId}` + 
                 "&lockReceive=true&ref=fkbyt39c" +
-                "&address="+this.toCurrencyAddress +
-                (topup? "" : "&lockType=true&hideType=true&lockAmount=true&toAmount=" + this.toCurrencyDue  );
+                `&address=${this.toCurrencyAddress}` +
+                (topup? "" : `&lockType=true&hideType=true&lockAmount=true&toAmount=${this.toCurrencyDue}` );
 
         }
     }
