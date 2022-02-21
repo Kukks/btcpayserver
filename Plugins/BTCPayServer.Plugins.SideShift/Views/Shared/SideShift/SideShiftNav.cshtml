@@ -3,9 +3,8 @@
 @using Microsoft.AspNetCore.Routing
 @{
     var storeId = Context.GetRouteValue("storeId")?.ToString();
-    
-    var controller = ViewContext.RouteData.Values["Controller"].ToString();
-    var isActive = nameof(SideShiftController).StartsWith(controller, StringComparison.InvariantCultureIgnoreCase);
+    var isActive = !string.IsNullOrEmpty(storeId) && ViewContext.RouteData.Values.TryGetValue("Controller", out var controller) &&  controller is not null && 
+        nameof(SideShiftController).StartsWith(controller?.ToString(), StringComparison.InvariantCultureIgnoreCase);
 }
 @if (!string.IsNullOrEmpty(storeId))
 {

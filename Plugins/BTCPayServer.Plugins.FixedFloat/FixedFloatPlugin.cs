@@ -14,7 +14,7 @@ namespace BTCPayServer.Plugins.FixedFloat
 
         public override IBTCPayServerPlugin.PluginDependency[] Dependencies { get; } =
         {
-            new IBTCPayServerPlugin.PluginDependency() { Identifier = nameof(BTCPayServer), Condition = ">=1.4.0.0" }
+            new IBTCPayServerPlugin.PluginDependency() { Identifier = nameof(BTCPayServer), Condition = ">=1.4.6.0" }
         };
 
         public override string Description =>

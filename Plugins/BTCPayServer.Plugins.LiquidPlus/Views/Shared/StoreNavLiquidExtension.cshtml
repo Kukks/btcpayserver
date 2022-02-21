@@ -3,10 +3,11 @@
 @using Microsoft.AspNetCore.Routing
 @inject BTCPayNetworkProvider BTCPayNetworkProvider;
 @{
-    var controller = ViewContext.RouteData.Values["Controller"].ToString();
-    var isLiquid = nameof(StoreLiquidController).StartsWith(controller, StringComparison.InvariantCultureIgnoreCase);
+    var storeId = Context.GetRouteValue("storeId")?.ToString();
+    var isActive = !string.IsNullOrEmpty(storeId) && ViewContext.RouteData.Values.TryGetValue("Controller", out var controller) &&  controller is not null && 
+ nameof(StoreLiquidController).StartsWith(controller?.ToString(), StringComparison.InvariantCultureIgnoreCase);
 }
 @if (BTCPayNetworkProvider.GetAll().OfType<ElementsBTCPayNetwork>().Any())
 {
-    <a class="nav-link @(isLiquid ? "active" : string.Empty)" asp-route-storeId="@this.Context.GetRouteValue("storeId")" asp-action="GenerateLiquidScript" asp-controller="StoreLiquid">Liquid</a>
+    <a class="nav-link @(isActive ? "active" : string.Empty)" asp-route-storeId="@this.Context.GetRouteValue("storeId")" asp-action="GenerateLiquidScript" asp-controller="StoreLiquid">Liquid</a>
 }

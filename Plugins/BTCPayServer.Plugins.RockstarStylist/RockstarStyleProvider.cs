@@ -18,12 +18,12 @@ namespace BTCPayServer.Plugins.RockstarStylist
 
         public async Task<RockstarStyle[]> Get()
         {
-            var response = JArray.Parse(await _githubClient.GetStringAsync("https://api.github.com/repos/kukks/BTCPayThemes/contents")); 
+            var response = JArray.Parse(await _githubClient.GetStringAsync("https://api.github.com/repos/btcpayserver/BTCPayThemes/contents")); 
             return response.Where(token => token.Value<string>("type") == "dir").Select(token => new RockstarStyle()
             {
                 StyleName = token.Value<string>("name"),
-                CssUrl = $"https://kukks.github.io/BTCPayThemes/{token.Value<string>("name")}/btcpay-checkout.custom.css",
-                PreviewUrl = $"https://kukks.github.io/BTCPayThemes/{token.Value<string>("name")}"
+                CssUrl = $"https://btcpayserver.github.io/BTCPayThemes/{token.Value<string>("name")}/btcpay-checkout.custom.css",
+                PreviewUrl = $"https://btcpayserver.github.io/BTCPayThemes/{token.Value<string>("name")}"
             }).ToArray();
         }
     }

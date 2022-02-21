@@ -6,14 +6,13 @@
 
 @{
     var storeId = Context.GetRouteValue("storeId")?.ToString();
-    
-    var controller = ViewContext.RouteData.Values["Controller"].ToString();
-    var isLiquid = nameof(StoreLiquidController).StartsWith(controller, StringComparison.InvariantCultureIgnoreCase);
+    var isActive = !string.IsNullOrEmpty(storeId) && ViewContext.RouteData.Values.TryGetValue("Controller", out var controller) &&  controller is not null && 
+                   nameof(StoreLiquidController).StartsWith(controller?.ToString(), StringComparison.InvariantCultureIgnoreCase);
 }
 @if (!string.IsNullOrEmpty(storeId) && (BTCPayNetworkProvider.GetAll().OfType<ElementsBTCPayNetwork>().Any()))
 {
     <li class="nav-item">
-        <a asp-route-storeId="@storeId" asp-action="GenerateLiquidScript" asp-controller="StoreLiquid" class="nav-link js-scroll-trigger @(isLiquid ? "active" : string.Empty)">
+        <a asp-route-storeId="@storeId" asp-action="GenerateLiquidScript" asp-controller="StoreLiquid" class="nav-link js-scroll-trigger @(isActive ? "active" : string.Empty)">
            <svg role="img" class="icon">
                        </svg>
             <span >Liquid+</span>
