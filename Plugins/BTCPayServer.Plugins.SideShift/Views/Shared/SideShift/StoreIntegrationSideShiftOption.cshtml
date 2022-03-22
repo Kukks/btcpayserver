@@ -7,7 +7,7 @@
     var storeId = Context.GetRouteValue("storeId")?.ToString();
 
     SideShiftSettings settings = null;
-    if (string.IsNullOrEmpty(storeId))
+    if (!string.IsNullOrEmpty(storeId))
     {
         try
         {

@@ -4,21 +4,16 @@
     <AddRazorSupportForMvc>true</AddRazorSupportForMvc>
     <PreserveCompilationContext>false</PreserveCompilationContext>
     <GenerateEmbeddedFilesManifest>true</GenerateEmbeddedFilesManifest>
-    <AssemblyVersion>1.0.3</AssemblyVersion>
+    <AssemblyVersion>1.0.0</AssemblyVersion>
 
   </PropertyGroup>
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <ProjectReference Include="..\..\BTCPayServer.Abstractions\BTCPayServer.Abstractions.csproj" />
+    <ProjectReference Include="..\..\BTCPayServer.Common\BTCPayServer.Common.csproj" />
     <EmbeddedResource Include="Resources\**" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Views\Shared" />
-  </ItemGroup>
-  <ItemGroup>
-    <Content Include="Resources\js\fixedFloatComponent.js">
-      <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
-      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-    </Content>
   </ItemGroup>
 </Project>

@@ -1,17 +1,17 @@
 @using BTCPayServer.Client
-@using BTCPayServer.Plugins.FixedFloat
+@using BTCPayServer.Plugins.AOPP
 @using Microsoft.AspNetCore.Routing
 @inject BTCPayServerClient BTCPayServerClient
-@inject FixedFloatService FixedFloatService
+@inject AOPPService AOPPService
 @{
     var storeId = Context.GetRouteValue("storeId")?.ToString();
 
-    FixedFloatSettings settings = null;
+    AOPPSettings settings = null;
     if (!string.IsNullOrEmpty(storeId))
     {
         try
         {
-            settings = await FixedFloatService.GetFixedFloatForStore(storeId);
+            settings = await AOPPService.GetAOPPForStore(storeId);
         }
         catch (Exception)
         {
@@ -24,7 +24,7 @@
         <div class="d-flex align-items-center">
             <span class="d-flex flex-wrap flex-fill flex-column flex-sm-row">
                 <strong class="me-3">
-                    FixedFloat
+                    AOPP
                 </strong>
                 <span title="" class="d-flex me-3">
                     <span class="text-secondary">Allows your customers to pay with altcoins that are not supported by BTCPay Server.</span>
@@ -38,7 +38,7 @@
                         Enabled
                     </span>
                     <span class="text-light ms-3 me-2">|</span>
-                    <a lass="btn btn-link px-1 py-1 fw-semibold" asp-controller="FixedFloat" asp-action="UpdateFixedFloatSettings" asp-route-storeId="@Context.GetRouteValue("storeId")">
+                    <a lass="btn btn-link px-1 py-1 fw-semibold" asp-controller="AOPP" asp-action="UpdateAOPPSettings" asp-route-storeId="@Context.GetRouteValue("storeId")">
                         Modify
                     </a>
                 }
@@ -48,7 +48,7 @@
                         <span class="me-2 btcpay-status btcpay-status--disabled"></span>
                         Disabled
                     </span>
-                    <a class="btn btn-primary btn-sm ms-4 px-3 py-1 fw-semibold" asp-controller="FixedFloat" asp-action="UpdateFixedFloatSettings" asp-route-storeId="@Context.GetRouteValue("storeId")">
+                    <a class="btn btn-primary btn-sm ms-4 px-3 py-1 fw-semibold" asp-controller="AOPP" asp-action="UpdateAOPPSettings" asp-route-storeId="@Context.GetRouteValue("storeId")">
                         Setup
                     </a>
                 }
