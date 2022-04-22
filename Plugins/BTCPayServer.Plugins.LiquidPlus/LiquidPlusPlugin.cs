@@ -19,7 +19,7 @@ namespace BTCPayServer.Plugins.LiquidPlus
 
         public override IBTCPayServerPlugin.PluginDependency[] Dependencies { get; } =
         {
-            new IBTCPayServerPlugin.PluginDependency() { Identifier = nameof(BTCPayServer), Condition = ">=1.4.6.0" }
+            new IBTCPayServerPlugin.PluginDependency() { Identifier = nameof(BTCPayServer), Condition = ">=1.4.9.0" }
         };
         public override string Description { get; } = "Enhanced support for the liquid network.";
 
