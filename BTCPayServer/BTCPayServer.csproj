@@ -150,6 +150,7 @@
 	  <ProjectReference Include="..\Plugins\BTCPayServer.Plugins.AOPP\BTCPayServer.Plugins.AOPP.csproj" />
 	  <ProjectReference Include="..\Plugins\BTCPayServer.Plugins.FixedFloat\BTCPayServer.Plugins.FixedFloat.csproj" />
 	  <ProjectReference Include="..\Plugins\BTCPayServer.Plugins.LiquidPlus\BTCPayServer.Plugins.LiquidPlus.csproj" />
+	  <ProjectReference Include="..\Plugins\BTCPayServer.Plugins.NFC\BTCPayServer.Plugins.NFC.csproj" />
 	  <ProjectReference Include="..\Plugins\BTCPayServer.Plugins.RockstarStylist\BTCPayServer.Plugins.RockstarStylist.csproj" />
 	  <ProjectReference Include="..\Plugins\BTCPayServer.Plugins.SideShift\BTCPayServer.Plugins.SideShift.csproj" />
 	</ItemGroup>

@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <AddRazorSupportForMvc>true</AddRazorSupportForMvc>
+    <PreserveCompilationContext>false</PreserveCompilationContext>
+    <GenerateEmbeddedFilesManifest>true</GenerateEmbeddedFilesManifest>
+    <AssemblyVersion>1.0.0</AssemblyVersion>
+
+  </PropertyGroup>
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <ProjectReference Include="..\..\BTCPayServer.Abstractions\BTCPayServer.Abstractions.csproj" />
+    <EmbeddedResource Include="Resources\**" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Views\Shared" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="Resources\js\lnurlwnfc.js">
+      <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+  </ItemGroup>
+  <ItemGroup>
+    <_ContentIncludedByDefault Remove="Views\NFC\UpdateFixedFloatSettings.cshtml" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="LNURL" Version="0.0.15" />
+  </ItemGroup>
+</Project>
