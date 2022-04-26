@@ -1,0 +1,117 @@
+﻿@using Microsoft.AspNetCore.Routing
+@model BTCPayServer.Plugins.TicketTailor.TicketTailorClient.Event
+
+@{
+    Layout = "_LayoutSimple";
+    var available = Model.Unavailable != "true" && Model.TicketsAvailable == "true";
+}
+<style>
+        .card-deck {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            grid-gap: 1.5rem;
+        }
+
+        .card-deck .card:only-of-type {
+            max-width: 320px;
+            margin: auto !important;
+        }
+        
+        
+footer {
+                  display: none;
+               }
+
+</style>
+<div class="container d-flex h-100">
+    <div class="justify-content-center align-self-center text-center mx-auto px-2 py-3 w-100 m-auto">
+        <partial name="_StatusMessage"/>
+
+        <h1 >@Model.Title</h1>
+        <h2 class="text-muted mb-4">@Model.Start.Formatted - @Model.EventEnd.Formatted</h2>
+        @if (!string.IsNullOrEmpty(Model.Description))
+        {
+            <div class="row">
+                <div class="overflow-hidden col-12">@Html.Raw(Model.Description)</div>
+            </div>
+        }
+        <form method="post" asp-controller="TicketTailor" asp-action="Purchase" asp-antiforgery="false" asp-route-storeId="@Context.GetRouteValue("storeId")">
+            <div class="row g-2 mb-4">
+
+                <div class="col-md">
+                    <div class="form-floating">
+                        <input required type="email" name="email" class="form-control"/>
+                        <label >Email</label>
+                    </div>
+                </div>
+
+            </div>
+            <div class="row g-2">
+                <div class="col-md">
+                    <div class="form-floating">
+                        <input type="text" minlength="5" name="firstName" required class="form-control">
+                        <label >First name</label>
+                    </div>
+                </div>
+                <div class="col-md">
+                    <div class="form-floating">
+                        <input type="text" minlength="5" name="lastName" required class="form-control">
+                        <label>Last name</label>
+                    </div>
+                </div>
+            </div>
+            <div class="card-deck my-3 mx-auto">
+
+                @for (int x = 0; x < Model.TicketTypes.Count; x++)
+                {
+                    var item = Model.TicketTypes[x];
+                    if (!new[] {"on_sale", "sold_out", "unavailable"}.Contains(item.Status))
+                    {
+                        continue;
+                    }
+                    <div class="card px-0" data-id="@x">
+
+                        @{ CardBody(item.Name, item.Description); }
+                        <div class="card-footer bg-transparent border-0 pb-3">
+
+                            <div class="w-100 pt-2 text-center">
+                                @if (available && item.Status == "on_sale" && item.Quantity > 0)
+                                {
+                                    <button name="ticketTypeId" value="@item.Id" class="btn btn-primary text-nowrap" type="submit">Buy for @item.Price @Model.Currency.ToUpperInvariant()</button>
+                                }
+                                else
+                                {
+                                    <button class="btn btn-secondary text-nowrap" type="button" disabled="disabled">Unavailable</button>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        </form>
+        <div class="row">
+            <div class="col-12">
+                <a href="@Model.Url">Back to fiat ticket page</a>
+            </div>
+            <div class="powered__by__btcpayserver col-12">
+                Powered by <a target="_blank" href="https://github.com/btcpayserver/btcpayserver" rel="noreferrer noopener">BTCPay Server</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+@functions {
+
+
+    private void CardBody(string title, string description)
+    {
+        <div class="card-body my-auto pb-0">
+            <h5 class="card-title">@title</h5>
+            @if (!String.IsNullOrWhiteSpace(description))
+            {
+                <p class="card-text">@Html.Raw(description)</p>
+            }
+        </div>
+    }
+
+}

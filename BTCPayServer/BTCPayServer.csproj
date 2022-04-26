@@ -153,6 +153,7 @@
 	  <ProjectReference Include="..\Plugins\BTCPayServer.Plugins.NFC\BTCPayServer.Plugins.NFC.csproj" />
 	  <ProjectReference Include="..\Plugins\BTCPayServer.Plugins.RockstarStylist\BTCPayServer.Plugins.RockstarStylist.csproj" />
 	  <ProjectReference Include="..\Plugins\BTCPayServer.Plugins.SideShift\BTCPayServer.Plugins.SideShift.csproj" />
+	  <ProjectReference Include="..\Plugins\BTCPayServer.Plugins.TicketTailor\BTCPayServer.Plugins.TicketTailor.csproj" />
 	</ItemGroup>
 
 	<ItemGroup>

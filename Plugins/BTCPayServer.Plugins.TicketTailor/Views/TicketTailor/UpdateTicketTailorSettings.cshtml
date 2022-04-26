@@ -1,0 +1,52 @@
+﻿@using BTCPayServer.Abstractions.Extensions
+@using BTCPayServer.Client
+@using Microsoft.AspNetCore.Routing
+@model BTCPayServer.Plugins.TicketTailor.UpdateTicketTailorSettingsViewModel
+@inject BTCPayServerClient _btcPayServerClient
+@{
+    Layout = "../Shared/_NavLayout.cshtml";
+    ViewData["NavPartialName"] = "../UIStores/_Nav";
+    ViewData.SetActivePage("TicketTailor", "Update Store TicketTailor Settings", null);
+    var storeId = (string) Context.GetRouteValue("storeId");
+    
+}
+
+<h2 class="mt-1 mb-4">@ViewData["Title"]</h2>
+@if (this.ViewContext.ModelState.IsValid && Model.EventId is not null)
+{
+    <div class="alert alert-info">
+        <a class="alert-link" href=" @Url.Action("View", "TicketTailor", new {storeId})">
+            Ticket purchase page
+        </a>
+    </div>
+    <div class="alert alert-warning">
+        Please ensure that emails in your store are configured if you wish to send the tickets via email to customers as TicketTailor does not handle it for tickets issued via its API.
+    </div>
+}
+<div class="row">
+    <div class="col-xl-8 col-xxl-constrain">
+        <form method="post">
+            <input type="hidden" asp-for="WebhookId"/>
+            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+            <div class="form-group">
+                <label asp-for="ApiKey" class="form-label" data-required></label>
+                <input asp-for="ApiKey" class="form-control" required/>
+                <span asp-validation-for="ApiKey" class="text-danger"></span>
+            </div>
+
+            @if (Model.Events is not null)
+            {
+                <div class="form-group">
+                    <label asp-for="EventId" class="form-label" data-required></label>
+                    <select asp-for="EventId" asp-items="Model.Events" class="form-select"></select>
+                </div>
+            }
+            <div class="form-group mt-4">
+                <input type="submit" value="Save" name="command" class="btn btn-primary"/>
+            </div>
+        </form>
+    </div>
+</div>
+
+<partial name="_ValidationScriptsPartial"/>

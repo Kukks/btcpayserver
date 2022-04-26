@@ -51,6 +51,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BTCPayServer.Plugins.AOPP",
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BTCPayServer.Plugins.NFC", "Plugins\BTCPayServer.Plugins.NFC\BTCPayServer.Plugins.NFC.csproj", "{A2CCAA04-C57E-43EC-AA9E-D2005FCAC760}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BTCPayServer.Plugins.TicketTailor", "Plugins\BTCPayServer.Plugins.TicketTailor\BTCPayServer.Plugins.TicketTailor.csproj", "{E2CFE491-BC7F-4E7F-9BA3-ADE93EF3AB52}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Altcoins-Debug|Any CPU = Altcoins-Debug|Any CPU
@@ -451,6 +453,30 @@ Global
 		{A2CCAA04-C57E-43EC-AA9E-D2005FCAC760}.Release|x64.Build.0 = Release|Any CPU
 		{A2CCAA04-C57E-43EC-AA9E-D2005FCAC760}.Release|x86.ActiveCfg = Release|Any CPU
 		{A2CCAA04-C57E-43EC-AA9E-D2005FCAC760}.Release|x86.Build.0 = Release|Any CPU
+		{E2CFE491-BC7F-4E7F-9BA3-ADE93EF3AB52}.Altcoins-Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E2CFE491-BC7F-4E7F-9BA3-ADE93EF3AB52}.Altcoins-Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E2CFE491-BC7F-4E7F-9BA3-ADE93EF3AB52}.Altcoins-Debug|x64.ActiveCfg = Debug|Any CPU
+		{E2CFE491-BC7F-4E7F-9BA3-ADE93EF3AB52}.Altcoins-Debug|x64.Build.0 = Debug|Any CPU
+		{E2CFE491-BC7F-4E7F-9BA3-ADE93EF3AB52}.Altcoins-Debug|x86.ActiveCfg = Debug|Any CPU
+		{E2CFE491-BC7F-4E7F-9BA3-ADE93EF3AB52}.Altcoins-Debug|x86.Build.0 = Debug|Any CPU
+		{E2CFE491-BC7F-4E7F-9BA3-ADE93EF3AB52}.Altcoins-Release|Any CPU.ActiveCfg = Debug|Any CPU
+		{E2CFE491-BC7F-4E7F-9BA3-ADE93EF3AB52}.Altcoins-Release|Any CPU.Build.0 = Debug|Any CPU
+		{E2CFE491-BC7F-4E7F-9BA3-ADE93EF3AB52}.Altcoins-Release|x64.ActiveCfg = Debug|Any CPU
+		{E2CFE491-BC7F-4E7F-9BA3-ADE93EF3AB52}.Altcoins-Release|x64.Build.0 = Debug|Any CPU
+		{E2CFE491-BC7F-4E7F-9BA3-ADE93EF3AB52}.Altcoins-Release|x86.ActiveCfg = Debug|Any CPU
+		{E2CFE491-BC7F-4E7F-9BA3-ADE93EF3AB52}.Altcoins-Release|x86.Build.0 = Debug|Any CPU
+		{E2CFE491-BC7F-4E7F-9BA3-ADE93EF3AB52}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E2CFE491-BC7F-4E7F-9BA3-ADE93EF3AB52}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E2CFE491-BC7F-4E7F-9BA3-ADE93EF3AB52}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{E2CFE491-BC7F-4E7F-9BA3-ADE93EF3AB52}.Debug|x64.Build.0 = Debug|Any CPU
+		{E2CFE491-BC7F-4E7F-9BA3-ADE93EF3AB52}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{E2CFE491-BC7F-4E7F-9BA3-ADE93EF3AB52}.Debug|x86.Build.0 = Debug|Any CPU
+		{E2CFE491-BC7F-4E7F-9BA3-ADE93EF3AB52}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E2CFE491-BC7F-4E7F-9BA3-ADE93EF3AB52}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E2CFE491-BC7F-4E7F-9BA3-ADE93EF3AB52}.Release|x64.ActiveCfg = Release|Any CPU
+		{E2CFE491-BC7F-4E7F-9BA3-ADE93EF3AB52}.Release|x64.Build.0 = Release|Any CPU
+		{E2CFE491-BC7F-4E7F-9BA3-ADE93EF3AB52}.Release|x86.ActiveCfg = Release|Any CPU
+		{E2CFE491-BC7F-4E7F-9BA3-ADE93EF3AB52}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -469,5 +495,6 @@ Global
 		{3EBB061E-48E3-48F5-A052-AA30FA05C341} = {1FC7F660-ADF1-4D55-B61A-85C6AB083C33}
 		{9C4B00A1-F4CB-40C0-AF41-95AB306DC619} = {1FC7F660-ADF1-4D55-B61A-85C6AB083C33}
 		{A2CCAA04-C57E-43EC-AA9E-D2005FCAC760} = {1FC7F660-ADF1-4D55-B61A-85C6AB083C33}
+		{E2CFE491-BC7F-4E7F-9BA3-ADE93EF3AB52} = {1FC7F660-ADF1-4D55-B61A-85C6AB083C33}
 	EndGlobalSection
 EndGlobal
