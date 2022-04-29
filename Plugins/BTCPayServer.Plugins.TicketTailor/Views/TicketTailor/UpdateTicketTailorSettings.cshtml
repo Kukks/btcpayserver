@@ -9,6 +9,7 @@
     ViewData["NavPartialName"] = "../UIStores/_Nav";
     ViewData.SetActivePage("TicketTailor", "Update Store TicketTailor Settings", null);
     var storeId = (string) Context.GetRouteValue("storeId");
+    Model.SpecificTickets ??= new List<SpecificTicket>();
 
 }
 
@@ -60,7 +61,7 @@
 
                 @if (Model.TicketTypes?.Any() is true)
                 {
-                    var uniqueRemaining = Model.TicketTypes.Where(type => !Model.SpecificTickets.Any(ticket => ticket.TicketTypeId == type.Id));
+                    var uniqueRemaining = Model.TicketTypes.Where(type => Model.SpecificTickets?.Any(ticket => ticket.TicketTypeId == type.Id) is false);
                     <div class="row mt-4">
                         <div class="h4 w-100">Specific tickets</div>
                         <p>Specific tickets allow you to override explicitly which tickets you wish to allow to sell, and also override the price of these tickets over the TicketTailor price.</p>
