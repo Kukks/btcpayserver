@@ -16,6 +16,7 @@ public class UpdateTicketTailorSettingsViewModel
     public TicketTailorClient.TicketType[] TicketTypes { get; set; }
 
     public List<SpecificTicket> SpecificTickets { get; set; }
+    public bool BypassAvailabilityCheck { get; set; }
 }
 
 public class SpecificTicket

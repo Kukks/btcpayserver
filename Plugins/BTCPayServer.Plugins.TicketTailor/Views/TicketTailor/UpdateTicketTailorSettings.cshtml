@@ -14,11 +14,17 @@
 }
 
 <h2 class="mt-1 mb-4">@ViewData["Title"]</h2>
-@if (this.ViewContext.ModelState.IsValid && Model.EventId is not null)
+@if (ViewContext.ModelState.IsValid && Model.EventId is not null)
 {
     <div class="alert alert-warning">
         Please ensure that emails in your store are configured if you wish to send the tickets via email to customers as TicketTailor does not handle it for tickets issued via its API.
     </div>
+    @if (Model.WebhookId is not null)
+    {
+        <div class="alert alert-success">
+            A webhook for this integration has been configured. Ensure that the url used for btcpayserver is accessible publicly.
+        </div>
+    }
 }
 <div class="row">
     <div class="col-xl-8 col-xxl-constrain">
@@ -51,6 +57,11 @@
                     <input asp-for="ShowEmbedForm" type="checkbox" class="form-check-input"/>
                     <label asp-for="ShowEmbedForm" class="form-check-label">Show TicketTailor fiat ticket embed form</label>
                     <span asp-validation-for="ShowEmbedForm" class="text-danger"></span>
+                </div>
+                <div class="form-group form-check">
+                    <input asp-for="BypassAvailabilityCheck" type="checkbox" class="form-check-input"/>
+                    <label asp-for="BypassAvailabilityCheck" class="form-check-label">Bypass availability checks of TicketTailor (such as when in draft mode)</label>
+                    <span asp-validation-for="BypassAvailabilityCheck" class="text-danger"></span>
                 </div>
 
                 <div class="form-group">

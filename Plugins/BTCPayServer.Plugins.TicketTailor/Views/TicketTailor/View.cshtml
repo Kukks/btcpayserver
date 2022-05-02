@@ -5,7 +5,7 @@
 @inject BTCPayServer.Security.ContentSecurityPolicies csp;
 @{
     Layout = "_LayoutSimple";
-    var available = Model.Event.Unavailable != "true" && Model.Event.TicketsAvailable == "true";
+    var available = Model.Settings.BypassAvailabilityCheck || ( Model.Event.Unavailable != "true" && Model.Event.TicketsAvailable == "true");
     Model.Settings.SpecificTickets ??= new List<SpecificTicket>();
 }
 <style>
@@ -75,7 +75,7 @@ footer {
                 @for (int x = 0; x < Model.Event.TicketTypes.Count; x++)
                 {
                     var item = Model.Event.TicketTypes[x];
-                    var availableToShow = !new[] {"on_sale", "sold_out", "unavailable"}.Contains(item.Status);
+                    var availableToShow = new[] {"on_sale", "sold_out", "unavailable"}.Contains(item.Status);
                     var specific = false;
                     
                     if (Model.Settings.SpecificTickets?.Any() is true )
