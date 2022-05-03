@@ -70,7 +70,7 @@
                     var uniqueRemaining = Model.TicketTypes.Where(type => Model.SpecificTickets?.Any(ticket => ticket.TicketTypeId == type.Id) is false);
                     <div class="row mt-4">
                         <div class="h4 w-100">Specific tickets</div>
-                        <p>Specific tickets allow you to override explicitly which tickets you wish to allow to sell, and also override the price of these tickets over the TicketTailor price.</p>
+                        <p>Specific tickets allow you to override explicitly which tickets you wish to allow to sell, and also override the price, name, and description of these tickets.</p>
                         @if (uniqueRemaining.Any())
                         {
                             SelectList sl = new SelectList(uniqueRemaining, nameof(TicketTailorClient.TicketType.Id), nameof(TicketTailorClient.TicketType.Name));
@@ -96,8 +96,11 @@
                                     <input asp-for="SpecificTickets[index].TicketTypeId" type="hidden"/>
                                     <span class="input-group-text">@ticketType.Name</span>
                                     <input class="form-control" asp-for="SpecificTickets[index].Price" type="number" step="1" min="0" placeholder="Custom price"/>
+                                    <input class="form-control" asp-for="SpecificTickets[index].Name" type="text" placeholder="Custom name"/>
                                     <button type="submit" value="remove-specific-ticket:@index" name="command" class="btn btn-outline-danger input-group-btn">Remove</button>
                                 </div>
+                                <textarea class="form-control richtext" asp-for="SpecificTickets[index].Description" type="text"  placeholder="Custom description"></textarea>
+                                                                    
                             </div>
                         }
                     </div>

@@ -1,5 +1,4 @@
 ﻿@using BTCPayServer.Client.Models
-@using Microsoft.AspNetCore.Routing
 @model BTCPayServer.Plugins.TicketTailor.TicketTailorController.TicketReceiptPage
 @inject ContentSecurityPolicies contentSecurityPolicies
 @using BTCPayServer.Security
@@ -9,6 +8,7 @@
     contentSecurityPolicies.Add("script-src", $"'nonce-{nonce}'");
     contentSecurityPolicies.AllowUnsafeHashes();
     Layout = "_LayoutSimple";
+    var reloadPage = false;
 }
 <style>
 footer {
@@ -26,8 +26,10 @@ footer {
         </div>
         @if (Model.Status == InvoiceStatus.Processing)
         {
+            reloadPage = true;
             <div class="Alert alert-info">
-                The invoice has detected a payment but is still waiting to be settled.
+                The invoice has detected a payment but is still waiting to be settled. This page will refresh periodically until it is settled.
+
             </div>
         }
         else if (Model.Status != InvoiceStatus.Settled)
@@ -38,12 +40,16 @@ footer {
         }
         else if (Model.Ticket is null)
         {
+            
+            reloadPage = true;
             <div class="alert alert-warning">
-                The invoice is settled but the ticket has not been issued yet. Refresh this page momentarily.
+                The invoice is settled but the ticket has not been issued yet. This page will refresh periodically until it is issued.
             </div>
         }
         else
         {
+            var specificTicketName = Model.Settings?.SpecificTickets?.FirstOrDefault(ticket => ticket.TicketTypeId == Model.TicketType.Id)?.Name ?? Model.TicketType.Name;
+            
             <div class="row mb-4">
                 <div class="col col-12 col-lg-6 mb-md-0 mb-sm-4">
                     <div class="bg-tile h-100 m-0 p-3 p-sm-5 rounded">
@@ -56,8 +62,6 @@ footer {
                                 <img src="@Model.Ticket.BarcodeUrl" alt="Please ensure you can see this barcode" class="w-100">
                             </div>
                         </div>
-
-
                         <div class="d-flex d-print-inline-block flex-column mb-4 ">
                             <dt class="h3 fw-semibold text-print-default order-2 order-sm-1 ">@Model.Ticket.Barcode</dt> <dd class="order-1 order-sm-2 ">TICKET CODE</dd>
                         </div>
@@ -68,15 +72,13 @@ footer {
                             </div>
                         }
                         <div class="d-flex d-print-inline-block flex-column ">
-                            <dt class="h3 fw-semibold text-print-default order-2 order-sm-1 ">@Model.TicketType.Name</dt> <dd class="order-1 order-sm-2 ">TICKET TYPE</dd>
+                            <dt class="h3 fw-semibold text-print-default order-2 order-sm-1 ">@specificTicketName</dt> <dd class="order-1 order-sm-2 ">TICKET TYPE</dd>
                         </div>
                     </div>
                 </div>
                 <div class="col col-12 col-lg-6 mb-md-0 mb-sm-4">
                     <div class="bg-tile h-100 m-0 p-3 p-sm-5 rounded">
                         <h2 class="h4 mb-3 d-print-none">Event Details</h2>
-
-
                         <div class="d-flex d-print-inline-block flex-column mb-4 ">
                             <dt class="h3 fw-semibold text-nowrap text-print-default order-2 order-sm-1 ">@Model.Event.Title</dt> <dd class="order-1 order-sm-2 ">EVENT</dd>
                         </div>
@@ -105,11 +107,21 @@ footer {
     </div>
 </div>
 
-
+@if (reloadPage)
+{
+    <script type="text/javascript" nonce="@nonce">       
+        setTimeout(function(){
+            
+            window.location.reload();
+        }, 3000); 
+    </script>
+}
 <script type="text/javascript" nonce="@nonce">
+    
     document.addEventListener("DOMContentLoaded", function () {
         document.getElementById("btnPrint").addEventListener("click", function (){
             window.print();
         });
     });
+    
 </script>

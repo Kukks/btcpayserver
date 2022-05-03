@@ -142,6 +142,7 @@ namespace BTCPayServer.Plugins.TicketTailor
                         result.Event = evt;
                         result.TicketType =
                             evt.TicketTypes.FirstOrDefault(type => type.Id == result.Ticket.TicketTypeId);
+                        result.Settings = settings;
                     }
                 }
 
@@ -174,6 +175,7 @@ namespace BTCPayServer.Plugins.TicketTailor
             public TicketTailorClient.IssuedTicket Ticket { get; set; }
             public TicketTailorClient.Event Event { get; set; }
             public TicketTailorClient.TicketType TicketType { get; set; }
+            public TicketTailorSettings Settings { get; set; }
         }
 
 

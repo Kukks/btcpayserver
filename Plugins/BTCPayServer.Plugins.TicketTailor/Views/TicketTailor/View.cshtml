@@ -41,7 +41,7 @@ footer {
         <h2 class="text-muted mb-4">@Model.Event.Start.Formatted - @Model.Event.EventEnd.Formatted</h2>
         @if (Model.Settings.ShowDescription && !string.IsNullOrEmpty(Model.Event.Description))
         {
-            <div class="row">
+            <div class="row" id="ticket-tailor-description">
                 <div class="overflow-hidden col-12">@Safe.Raw(Model.Event.Description)</div>
             </div>
         }
@@ -89,6 +89,14 @@ footer {
                         if(matched.Price is not null)
                         {
                             item.Price = matched.Price.Value;
+                        }
+                        if(!string.IsNullOrEmpty(matched.Name))
+                        {
+                            item.Name = matched.Name;
+                        }
+                        if(!string.IsNullOrEmpty(matched.Description))
+                        {
+                            item.Description = matched.Description;
                         }
                         availableToShow = true;
                         specific = true;
