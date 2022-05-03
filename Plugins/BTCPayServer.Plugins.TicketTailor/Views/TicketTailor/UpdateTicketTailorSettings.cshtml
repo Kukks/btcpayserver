@@ -18,18 +18,13 @@
 {
     <div class="alert alert-warning">
         Please ensure that emails in your store are configured if you wish to send the tickets via email to customers as TicketTailor does not handle it for tickets issued via its API.
+        <br/>
+        Ensure that the url used for btcpayserver is accessible publicly.
     </div>
-    @if (Model.WebhookId is not null)
-    {
-        <div class="alert alert-success">
-            A webhook for this integration has been configured. Ensure that the url used for btcpayserver is accessible publicly.
-        </div>
-    }
 }
 <div class="row">
     <div class="col-xl-8 col-xxl-constrain">
         <form method="post">
-            <input type="hidden" asp-for="WebhookId"/>
             <div asp-validation-summary="ModelOnly" class="text-danger"></div>
 
             <div class="form-group">
@@ -80,12 +75,12 @@
                         {
                             SelectList sl = new SelectList(uniqueRemaining, nameof(TicketTailorClient.TicketType.Id), nameof(TicketTailorClient.TicketType.Name));
                             <div class="form-group">
-                                
-                                <div class="input-group">
-                                <select asp-for="NewSpecificTicket" asp-items="@sl" class="form-select"></select>
 
-                                <button type="submit" value="add-specific-ticket" name="command" class="btn btn-outline-primary input-group-btn">Add</button>
-                            </div>
+                                <div class="input-group">
+                                    <select asp-for="NewSpecificTicket" asp-items="@sl" class="form-select"></select>
+
+                                    <button type="submit" value="add-specific-ticket" name="command" class="btn btn-outline-primary input-group-btn">Add</button>
+                                </div>
                             </div>
                         }
                         @for (var index = 0; index < Model.SpecificTickets.Count; index++)

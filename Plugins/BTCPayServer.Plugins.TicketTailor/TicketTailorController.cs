@@ -98,7 +98,7 @@ namespace BTCPayServer.Plugins.TicketTailor
                             },
                             Metadata = JObject.FromObject(new
                             {
-                                buyerName = $"{firstName} {lastName}", buyerEmail = email, ticketTypeId
+                                buyerName = $"{firstName} {lastName}", buyerEmail = email, ticketTypeId,orderId="tickettailor"
                             })
                         });
 
@@ -206,7 +206,6 @@ namespace BTCPayServer.Plugins.TicketTailor
                     vm.ShowDescription = TicketTailor.ShowDescription;
                     vm.BypassAvailabilityCheck = TicketTailor.BypassAvailabilityCheck;
                     vm.CustomCSS = TicketTailor.CustomCSS;
-                    vm.WebhookId = TicketTailor.WebhookId;
                     vm.SpecificTickets = TicketTailor.SpecificTickets;
                 }
             }
@@ -309,19 +308,11 @@ namespace BTCPayServer.Plugins.TicketTailor
                 "TicketTailor", new {storeId}));
             if (vm.ApiKey is not null && vm.EventId is not null)
             {
-                try
+                var webhooks = await btcPayServerClient.GetWebhooks(storeId);
+                var webhook = webhooks.FirstOrDefault(data => data.Enabled && data.Url == webhookUrl && (data.AuthorizedEvents.Everything || data.AuthorizedEvents.SpecificEvents.Contains(WebhookEventType.InvoiceSettled)));
+                if (webhook is null)
                 {
-                    var webhook = await btcPayServerClient.GetWebhook(storeId, vm.WebhookId);
-                    if (!webhook.Enabled || webhook.Url != webhookUrl)
-                    {
-                        await btcPayServerClient.DeleteWebhook(storeId, webhook.Id);
-                       settings.WebhookId = await CreateWebhook(storeId, btcPayServerClient, webhookUrl);
-                    }
-                    settings.WebhookId = webhook.Id;
-                }
-                catch (Exception e)
-                {
-                    settings.WebhookId = await CreateWebhook(storeId, btcPayServerClient, webhookUrl);
+                    await CreateWebhook(storeId, btcPayServerClient, webhookUrl);
                 }
             }
 
@@ -359,7 +350,7 @@ namespace BTCPayServer.Plugins.TicketTailor
         [HttpPost("callback")]
         public async Task<IActionResult> Callback(string storeId, [FromBody] WebhookInvoiceSettledEvent response)
         {
-            if (response.StoreId != storeId)
+            if (response.StoreId != storeId && response.Type != WebhookEventType.InvoiceSettled)
             {
                 return BadRequest();
             }
@@ -399,7 +390,10 @@ namespace BTCPayServer.Plugins.TicketTailor
                     FullName = name,
                 });
                 invoice.Metadata["ticketId"] = ticket.Id;
+                invoice.Metadata["orderId"] = $"tickettailor_{ticket.Id}";
+                
                 posData["Ticket Code"] = ticket.Barcode;
+                posData["Ticket Id"] = ticket.Id;
                 invoice.Metadata["posData"] = posData;
                 await btcPayClient.UpdateInvoice(storeId, invoice.Id,
                     new UpdateInvoiceRequest() {Metadata = invoice.Metadata});
@@ -424,7 +418,7 @@ namespace BTCPayServer.Plugins.TicketTailor
             }
             catch (Exception e)
             {
-                posData["Error"] = "Ticket could not be created. You should refund customer.";
+                posData["Error"] = $"Ticket could not be created. You should refund customer.{Environment.NewLine}{e.Message}";
                 invoice.Metadata["posData"] = posData;
                 await btcPayClient.UpdateInvoice(storeId, invoice.Id,
                     new UpdateInvoiceRequest() {Metadata = invoice.Metadata});

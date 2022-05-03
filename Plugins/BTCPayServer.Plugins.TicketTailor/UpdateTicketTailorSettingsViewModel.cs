@@ -9,7 +9,6 @@ public class UpdateTicketTailorSettingsViewModel
     public string ApiKey { get; set; }
     public SelectList Events { get; set; }
     public string EventId { get; set; }
-    public string WebhookId { get; set; }
     public bool ShowDescription { get; set; }
     public bool ShowEmbedForm { get; set; }
     public string CustomCSS { get; set; }

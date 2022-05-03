@@ -24,7 +24,13 @@ footer {
             <h1 >Ticket Receipt</h1>
             <button class="btn btn-link d-print-none" id="btnPrint">Print</button>
         </div>
-        @if (Model.Status != InvoiceStatus.Settled)
+        @if (Model.Status == InvoiceStatus.Processing)
+        {
+            <div class="Alert alert-info">
+                The invoice has detected a payment but is still waiting to be settled.
+            </div>
+        }
+        else if (Model.Status != InvoiceStatus.Settled)
         {
             <div class="Alert alert-danger">
                 The invoice is not settled.

@@ -59,13 +59,13 @@ footer {
             <div class="row g-2" id="ticket-form-name-container">
                 <div class="col-md">
                     <div class="form-floating">
-                        <input type="text" minlength="5" name="firstName" required class="form-control">
+                        <input type="text" minlength="3" name="firstName" required class="form-control">
                         <label >First name</label>
                     </div>
                 </div>
                 <div class="col-md">
                     <div class="form-floating">
-                        <input type="text" minlength="5" name="lastName" required class="form-control">
+                        <input type="text" minlength="3" name="lastName" required class="form-control">
                         <label>Last name</label>
                     </div>
                 </div>
@@ -77,7 +77,7 @@ footer {
                     var item = Model.Event.TicketTypes[x];
                     var availableToShow = new[] {"on_sale", "sold_out", "unavailable"}.Contains(item.Status);
                     var specific = false;
-                    
+                        
                     if (Model.Settings.SpecificTickets?.Any() is true )
                     {
                         var matched = Model.Settings.SpecificTickets.FirstOrDefault(ticket => ticket.TicketTypeId == item.Id);
