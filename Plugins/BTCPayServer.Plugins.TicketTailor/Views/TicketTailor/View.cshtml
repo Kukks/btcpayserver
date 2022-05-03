@@ -5,7 +5,7 @@
 @inject BTCPayServer.Security.ContentSecurityPolicies csp;
 @{
     Layout = "_LayoutSimple";
-    var available = Model.Settings.BypassAvailabilityCheck || ( Model.Event.Unavailable != "true" && Model.Event.TicketsAvailable == "true");
+    var available = Model.Settings.BypassAvailabilityCheck || (Model.Event.Unavailable != "true" && Model.Event.TicketsAvailable == "true");
     Model.Settings.SpecificTickets ??= new List<SpecificTicket>();
 }
 <style>
@@ -46,9 +46,9 @@ footer {
             </div>
         }
         <form method="post" asp-controller="TicketTailor" asp-action="Purchase" asp-antiforgery="false" asp-route-storeId="@Context.GetRouteValue("storeId")">
-            <div class="row g-2 mb-4" id="ticket-form-email-container">
+            <div class="row g-2 mb-4 justify-content-center" id="ticket-form-email-container">
 
-                <div class="col-md">
+                <div class="col-sm-12  col-md-8">
                     <div class="form-floating">
                         <input required type="email" name="email" class="form-control"/>
                         <label >Email</label>
@@ -56,14 +56,14 @@ footer {
                 </div>
 
             </div>
-            <div class="row g-2" id="ticket-form-name-container">
-                <div class="col-md">
+            <div class="row g-2 justify-content-center" id="ticket-form-name-container">
+                <div class="col-sm-6 col-md-4">
                     <div class="form-floating">
                         <input type="text" minlength="3" name="firstName" required class="form-control">
                         <label >First name</label>
                     </div>
                 </div>
-                <div class="col-md">
+                <div class="col-sm-6 col-md-4">
                     <div class="form-floating">
                         <input type="text" minlength="3" name="lastName" required class="form-control">
                         <label>Last name</label>
@@ -77,24 +77,23 @@ footer {
                     var item = Model.Event.TicketTypes[x];
                     var availableToShow = new[] {"on_sale", "sold_out", "unavailable"}.Contains(item.Status);
                     var specific = false;
-                        
-                    if (Model.Settings.SpecificTickets?.Any() is true )
+
+                    if (Model.Settings.SpecificTickets?.Any() is true)
                     {
                         var matched = Model.Settings.SpecificTickets.FirstOrDefault(ticket => ticket.TicketTypeId == item.Id);
                         if (matched is null)
                         {
                             continue;
-                            
                         }
-                        if(matched.Price is not null)
+                        if (matched.Price is not null)
                         {
                             item.Price = matched.Price.Value;
                         }
-                        if(!string.IsNullOrEmpty(matched.Name))
+                        if (!string.IsNullOrEmpty(matched.Name))
                         {
                             item.Name = matched.Name;
                         }
-                        if(!string.IsNullOrEmpty(matched.Description))
+                        if (!string.IsNullOrEmpty(matched.Description))
                         {
                             item.Description = matched.Description;
                         }
@@ -111,7 +110,7 @@ footer {
                         <div class="card-footer bg-transparent border-0 pb-3">
 
                             <div class="w-100 pt-2 text-center">
-                                @if (available && (item.Status=="on_sale" ||specific) &&  item.Quantity > 0)
+                                @if (available && (item.Status == "on_sale" || specific) && item.Quantity > 0)
                                 {
                                     <button name="ticketTypeId" value="@item.Id" class="btn btn-primary text-nowrap" type="submit">
                                         @if (item.Price == 0)
@@ -140,8 +139,8 @@ footer {
             csp.Add("script-src", "https://tickettailor.com");
             csp.Add("script-src", "*.tickettailor.com");
             var internalId = Model.Event.Id.Substring(Model.Event.Id.IndexOf("_") + 1);
-            <div class="row bg-dark" id="embed-ticket-container">
-                <div class="col-12">
+            <div class="row bg-dark  justify-content-center" id="embed-ticket-container">
+                <div class="col-sm-12 col-md-8">
                     <div class="tt-widget">
                         <div class="tt-widget-fallback">
                             <p>

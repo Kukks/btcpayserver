@@ -11,10 +11,9 @@
     var reloadPage = false;
 }
 <style>
-footer {
-                  display: none;
-               }
-
+    footer {
+        display: none;
+    }
 </style>
 <div class="container d-flex h-100">
     <div class="justify-content-center align-self-center text-center mx-auto px-2 w-100 m-auto">
@@ -27,14 +26,14 @@ footer {
         @if (Model.Status == InvoiceStatus.Processing)
         {
             reloadPage = true;
-            <div class="Alert alert-info">
+            <div class="alert alert-info">
                 The invoice has detected a payment but is still waiting to be settled. This page will refresh periodically until it is settled.
 
             </div>
         }
         else if (Model.Status != InvoiceStatus.Settled)
         {
-            <div class="Alert alert-danger">
+            <div class="alert alert-danger">
                 The invoice is not settled.
             </div>
         }
