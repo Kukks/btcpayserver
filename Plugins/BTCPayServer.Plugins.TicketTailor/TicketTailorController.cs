@@ -130,9 +130,10 @@ namespace BTCPayServer.Plugins.TicketTailor
             {
                 var result = new TicketReceiptPage() {InvoiceId = invoiceId};
                 var invoice = await btcpayClient.GetInvoice(storeId, invoiceId);
+                result.Status = invoice.Status;
                 if (invoice.Status == InvoiceStatus.Settled)
                 {
-                    result.Status = invoice.Status;
+                    
                     if (invoice.Metadata.TryGetValue("ticketId", out var ticketId))
                     {
                         var settings = await _ticketTailorService.GetTicketTailorForStore(storeId);
