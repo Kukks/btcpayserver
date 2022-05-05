@@ -19,10 +19,9 @@ Vue.component("LNURLWithdrawContactless", {
                     const result = prompt("enter lnurl withdraw");
                     if (result) {
                         self.sendData.bind(self)(result);
-
-                        self.scanning = false;
                         return;
                     }
+                    self.scanning = false;
                 }
                 ndef = new NDEFReader()
                 await ndef.scan()
