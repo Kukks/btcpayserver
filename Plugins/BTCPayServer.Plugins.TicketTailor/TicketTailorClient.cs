@@ -197,7 +197,7 @@ public class TicketTailorClient : IDisposable
         [JsonPropertyName("description")] public string Description { get; set; }
         [JsonPropertyName("status")] public string Status { get; set; }
 
-        [JsonPropertyName("full_name")] public object FullName { get; set; }
+        [JsonPropertyName("full_name")] public string FullName { get; set; }
         
 
         [JsonPropertyName("qr_code_url")] public string QrCodeUrl { get; set; }

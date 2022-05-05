@@ -81,7 +81,7 @@ footer {
                     if (Model.Settings.SpecificTickets?.Any() is true)
                     {
                         var matched = Model.Settings.SpecificTickets.FirstOrDefault(ticket => ticket.TicketTypeId == item.Id);
-                        if (matched is null)
+                        if (matched is null || matched.Hidden)
                         {
                             continue;
                         }
