@@ -165,7 +165,7 @@ public class TicketTailorClient : IDisposable
 
         [JsonPropertyName("name")] public string Name { get; set; }
 
-        [JsonPropertyName("price")] public int Price { get; set; }
+        [JsonPropertyName("price")] public decimal Price { get; set; }
 
         [JsonPropertyName("status")] public string Status { get; set; }
 
