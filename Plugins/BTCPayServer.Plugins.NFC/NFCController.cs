@@ -35,7 +35,7 @@ namespace BTCPayServer.Plugins.NFC
                 return BadRequest();
             }
 
-            if (!string.IsNullOrEmpty(tag) && tag.Equals("withdrawRequest"))
+            if (!string.IsNullOrEmpty(tag) && !tag.Equals("withdrawRequest"))
             {
                 return BadRequest();
             }
