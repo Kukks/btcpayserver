@@ -12,6 +12,7 @@
     <ProjectReference Include="..\..\BTCPayServer.Abstractions\BTCPayServer.Abstractions.csproj" />
     <ProjectReference Include="..\..\BTCPayServer.Common\BTCPayServer.Common.csproj" />
     <EmbeddedResource Include="Resources\**" />
+    <ProjectReference Include="..\..\BTCPayServer.Data\BTCPayServer.Data.csproj" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Views\Shared" />

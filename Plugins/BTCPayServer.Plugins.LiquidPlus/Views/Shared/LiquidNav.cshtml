@@ -1,13 +1,22 @@
 @using BTCPayServer
+@using BTCPayServer.Data
 @using BTCPayServer.Plugins.LiquidPlus.Controllers
 @using Microsoft.AspNetCore.Routing
+@using NBitcoin
 
 @inject BTCPayNetworkProvider BTCPayNetworkProvider;
 
 @{
     var storeId = Context.GetRouteValue("storeId")?.ToString();
-    var isActive = !string.IsNullOrEmpty(storeId) && ViewContext.RouteData.Values.TryGetValue("Controller", out var controller) &&  controller is not null && 
-                   nameof(StoreLiquidController).StartsWith(controller?.ToString(), StringComparison.InvariantCultureIgnoreCase);
+    if (storeId == null)
+    {
+        var storeData = Context.Items.TryGet("BTCPAY.STOREDATA") as StoreData;
+        storeId = storeData?.Id;
+    }
+    var isActive = !string.IsNullOrEmpty(storeId) &&
+        ViewContext.RouteData.Values.TryGetValue("Controller", out var controller) &&
+        controller is not null &&
+        nameof(StoreLiquidController).StartsWith(controller.ToString(), StringComparison.InvariantCultureIgnoreCase);
 }
 @if (!string.IsNullOrEmpty(storeId) && (BTCPayNetworkProvider.GetAll().OfType<ElementsBTCPayNetwork>().Any()))
 {

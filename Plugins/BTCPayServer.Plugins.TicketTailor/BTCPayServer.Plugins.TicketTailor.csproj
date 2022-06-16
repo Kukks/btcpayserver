@@ -11,6 +11,7 @@
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <ProjectReference Include="..\..\BTCPayServer.Abstractions\BTCPayServer.Abstractions.csproj" />
     <EmbeddedResource Include="Resources\**" />
+    <ProjectReference Include="..\..\BTCPayServer.Data\BTCPayServer.Data.csproj" />
   </ItemGroup>
 
 </Project>
