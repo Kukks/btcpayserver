@@ -61,9 +61,9 @@ namespace BTCPayServer.Configuration
             NetworkType = DefaultConfiguration.GetNetworkType(conf);
 
             Logs.Configuration.LogInformation("Network: " + NetworkType.ToString());
-
-            if (conf.GetOrDefault<bool>("launchsettings", false) && NetworkType != ChainName.Regtest)
-                throw new ConfigException($"You need to run BTCPayServer with the run.sh or run.ps1 script");
+            //
+            // if (conf.GetOrDefault<bool>("launchsettings", false) && NetworkType != ChainName.Regtest)
+            //     throw new ConfigException($"You need to run BTCPayServer with the run.sh or run.ps1 script");
 
             if (conf.GetOrDefault<string>("POSTGRES", null) == null)
             {
@@ -160,8 +160,7 @@ namespace BTCPayServer.Configuration
             DisableRegistration = conf.GetOrDefault<bool>("disable-registration", true);
             RecommendedPlugins = conf.GetOrDefault("recommended-plugins", "").ToLowerInvariant().Split('\r', '\n', '\t', ' ').Where(s => !string.IsNullOrEmpty(s)).Distinct().ToArray();
             CheatMode = conf.GetOrDefault("cheatmode", false);
-            if (CheatMode && this.NetworkType == ChainName.Mainnet)
-                throw new ConfigException($"cheatmode can't be used on mainnet");
+         
         }
 
         public string[] RecommendedPlugins { get; set; }

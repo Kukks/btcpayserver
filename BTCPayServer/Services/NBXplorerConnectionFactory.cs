@@ -36,7 +36,7 @@ namespace BTCPayServer.Services
                 }
                 catch (Exception ex)
                 {
-                    throw new ConfigException("Error while trying to connection to explorer.postgres: " + ex.Message);
+                    // throw new ConfigException("Error while trying to connection to explorer.postgres: " + ex.Message);
                 }
             }
         }

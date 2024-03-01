@@ -36,6 +36,9 @@ namespace BTCPayServer.Services
 
         async Task IHostedService.StartAsync(CancellationToken cancellationToken)
         {
+            try
+            {
+
 #if ALTCOINS
             var liquid = _prov.GetNetwork("LBTC");
             if (liquid is not null)
@@ -62,6 +65,12 @@ namespace BTCPayServer.Services
             if (CashCow is { } c)
                 await c.ScanRPCCapabilitiesAsync(cancellationToken);
 #endif
+                
+            }
+            catch (Exception e)
+            {
+                
+            }
         }
 
         Task IHostedService.StopAsync(CancellationToken cancellationToken)
