@@ -11,7 +11,7 @@ using BTCPayServer.Controllers;
 using BTCPayServer.Data;
 using BTCPayServer.Hosting;
 using BTCPayServer.Models.StoreViewModels;
-using BTCPayServer.Models.WalletViewModels;
+using BTCPayServer.Plugins.Wallets.Views.ViewModels;
 using BTCPayServer.Rating;
 using BTCPayServer.Services.Fees;
 using BTCPayServer.Services.Rates;
@@ -19,16 +19,13 @@ using BTCPayServer.Storage.Models;
 using BTCPayServer.Storage.Services.Providers.AzureBlobStorage.Configuration;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Memory;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.FileSystemGlobbing;
 using NBitcoin;
 using NBitpayClient;
 using Newtonsoft.Json;
 using Xunit;
 using Xunit.Abstractions;
 using Xunit.Sdk;
-using static BTCPayServer.HostedServices.PullPaymentHostedService.PayoutApproval;
 
 namespace BTCPayServer.Tests
 {
@@ -98,8 +95,8 @@ namespace BTCPayServer.Tests
                 await mempoolSpaceFeeProvider.GetFeeRateAsync();
                 mempoolSpaceFeeProvider.CachedOnly = false;
                 Assert.NotEmpty(rates);
-                
-                
+
+
                 var recommendedFees =
                     await Task.WhenAll(new[]
                         {
@@ -126,25 +123,25 @@ namespace BTCPayServer.Tests
                 //ENSURE THESE ARE LOGICAL
                 Assert.True(recommendedFees[0].FeeRate >= recommendedFees[1].FeeRate, $"{recommendedFees[0].Target}:{recommendedFees[0].FeeRate} >= {recommendedFees[1].Target}:{recommendedFees[1].FeeRate}");
                 Assert.True(recommendedFees[1].FeeRate >= recommendedFees[2].FeeRate, $"{recommendedFees[1].Target}:{recommendedFees[1].FeeRate} >= {recommendedFees[2].Target}:{recommendedFees[2].FeeRate}");
-                Assert.True(recommendedFees[2].FeeRate >= recommendedFees[3].FeeRate, $"{recommendedFees[2].Target}:{recommendedFees[2].FeeRate} >= {recommendedFees[3].Target}:{recommendedFees[3].FeeRate}");                
+                Assert.True(recommendedFees[2].FeeRate >= recommendedFees[3].FeeRate, $"{recommendedFees[2].Target}:{recommendedFees[2].FeeRate} >= {recommendedFees[3].Target}:{recommendedFees[3].FeeRate}");
             }
         }
         [Fact]
         public async Task CanQueryDirectProviders()
         {
             // TODO: Check once in a while whether or not they are working again
-            string[] brokenShitcoinCasinos = { "binance", "coinbasepro" };
+            string[] brokenShitcoinCasinos = { "bitnob", "binance", "coinbasepro" };
             var skipped = 0;
             var factory = FastTests.CreateBTCPayRateFactory();
             var directlySupported = factory.AvailableRateProviders.Where(s => s.Source == RateSource.Direct)
                 .Select(s => s.Id).ToHashSet();
-            foreach (var result in factory
+            var providerList = factory
                 .Providers
-                .Where(p => p.Value is BackgroundFetcherRateProvider bf &&
-                            !(bf.Inner is CoinGeckoRateProvider cg && cg.UnderlyingExchange != null))
+                .Where(p => p.Value is BackgroundFetcherRateProvider)
                 .Select(p => (ExpectedName: p.Key, ResultAsync: p.Value.GetRatesAsync(default),
                     Fetcher: (BackgroundFetcherRateProvider)p.Value))
-                .ToList())
+                .ToList();
+            foreach (var result in providerList)
             {
                 var name = result.ExpectedName;
                 if (brokenShitcoinCasinos.Contains(name))
@@ -207,6 +204,9 @@ namespace BTCPayServer.Tests
                     Assert.Contains(exchangeRates.ByExchange[name],
                         e => e.CurrencyPair == new CurrencyPair("BTC", "LBP") &&
                              e.BidAsk.Bid > 1.0m); // 1 BTC will always be more than 1 LBP (I hope)
+                    Assert.Contains(exchangeRates.ByExchange[name],
+                        e => e.CurrencyPair == new CurrencyPair("BTC", "XPT") &&
+                             e.BidAsk.Bid > 1.0m); // 1 BTC will always be more than 1 LBP (I hope)
                 }
                 else if (name == "bitmynt")
                 {
@@ -214,11 +214,20 @@ namespace BTCPayServer.Tests
                         e => e.CurrencyPair == new CurrencyPair("BTC", "NOK") &&
                              e.BidAsk.Bid > 1.0m); // 1 BTC will always be more than 1 NOK
                 }
-                else if (name == "barebitcoin") 
+                else if (name == "barebitcoin")
                 {
                     Assert.Contains(exchangeRates.ByExchange[name],
                         e => e.CurrencyPair == new CurrencyPair("BTC", "NOK") &&
                              e.BidAsk.Bid > 1.0m); // 1 BTC will always be more than 1 NOK
+                }
+                else if (name == "coinmate")
+                {
+                    Assert.Contains(exchangeRates.ByExchange[name],
+                        e => e.CurrencyPair == new CurrencyPair("BTC", "EUR") &&
+                             e.BidAsk.Bid > 1.0m); // 1 BTC will always be more than 1 EUR
+                    Assert.Contains(exchangeRates.ByExchange[name],
+                        e => e.CurrencyPair == new CurrencyPair("BTC", "CZK") &&
+                             e.BidAsk.Bid > 1.0m); // 1 BTC will always be more than 1 CZK
                 }
                 else
                 {
@@ -280,12 +289,14 @@ namespace BTCPayServer.Tests
 
             var urlBlacklist = new string[]
             {
+                "https://zaphq.io", // Returns forbidden over test. Opening on tab, it redirects to strike
                 "https://www.btse.com", // not allowing to be hit from circleci
                 "https://www.bitpay.com", // not allowing to be hit from circleci
                 "https://support.bitpay.com",
                 "https://www.coingecko.com", // unhappy service
                 "https://www.wasabiwallet.io", // Banning US, CI unhappy
-                "https://fullynoded.app" // Sometimes DNS doesn't work
+                "https://fullynoded.app", // Sometimes DNS doesn't work
+                "https://hrf.org" // Started returning Forbidden
             };
 
             foreach (var match in regex.Matches(text).OfType<Match>())
@@ -377,7 +388,7 @@ retry:
             foreach (var k in defaultRules.RecommendedExchanges)
             {
                 b.DefaultCurrency = k.Key;
-                var rules = b.GetDefaultRateRules(defaultRules);
+                var rules = b.GetOrCreateRateSettings(false).GetDefaultRateRules(defaultRules, b.Spread);
                 var pairs = new[] { CurrencyPair.Parse($"BTC_{k.Key}") }.ToHashSet();
                 var result = fetcher.FetchRates(pairs, rules, null, default);
                 foreach ((CurrencyPair key, Task<RateResult> value) in result)
@@ -385,7 +396,7 @@ retry:
                     TestLogs.LogInformation($"Testing {key} when default currency is {k.Key}");
                     var rateResult = await value;
                     var hasRate = rateResult.BidAsk != null;
-                    
+
                     if (temporarilyBroken.Contains(k.Key))
                     {
                         if (!hasRate)
@@ -425,7 +436,7 @@ retry:
                 }
             }
 
-            var rules = new StoreBlob().GetDefaultRateRules(defaultRules);
+            var rules = new StoreBlob().GetOrCreateRateSettings(false).GetDefaultRateRules(defaultRules, 0.0m);
             var result = fetcher.FetchRates(pairs, rules, null, cts.Token);
             foreach ((CurrencyPair key, Task<RateResult> value) in result)
             {
@@ -532,11 +543,12 @@ retry:
             expected = (await (await client.GetAsync($"https://cdn.jsdelivr.net/npm/vue-sanitize-directive@{version}/dist/vue-sanitize-directive.umd.min.js")).Content.ReadAsStringAsync()).Trim();
             EqualJsContent(expected, actual);
 
-            actual = GetFileContent("BTCPayServer", "wwwroot", "vendor", "decimal.js", "decimal.min.js").Trim();
-            version = Regex.Match(actual, "Original file: /npm/decimal\\.js@([0-9]+.[0-9]+.[0-9]+)/decimal\\.js").Groups[1].Value;
-            expected = (await (await client.GetAsync($"https://cdn.jsdelivr.net/npm/decimal.js@{version}/decimal.min.js")).Content.ReadAsStringAsync()).Trim();
-            EqualJsContent(expected, actual);
-            
+            // Somehow, cdn.jsdelivr.net always change the minifier breaking this test time to time...
+            // actual = GetFileContent("BTCPayServer", "wwwroot", "vendor", "decimal.js", "decimal.min.js").Trim();
+            // version = Regex.Match(actual, "Original file: /npm/decimal\\.js@([0-9]+.[0-9]+.[0-9]+)/decimal\\.js").Groups[1].Value;
+            // expected = (await (await client.GetAsync($"https://cdn.jsdelivr.net/npm/decimal.js@{version}/decimal.min.js")).Content.ReadAsStringAsync()).Trim();
+            // EqualJsContent(expected, actual);
+
             actual = GetFileContent("BTCPayServer", "wwwroot", "vendor", "bbqr", "bbqr.iife.js").Trim();
             expected = (await (await client.GetAsync($"https://cdn.jsdelivr.net/npm/bbqr@1.0.0/dist/bbqr.iife.js")).Content.ReadAsStringAsync()).Trim();
             EqualJsContent(expected, actual);
@@ -605,7 +617,6 @@ retry:
             await user.GrantAccessAsync();
             user.RegisterDerivationScheme("BTC");
             List<decimal> rates = new List<decimal>();
-            rates.Add(await CreateInvoice(tester, user, "coingecko"));
             var bitflyer = await CreateInvoice(tester, user, "bitflyer", "JPY");
             var bitflyer2 = await CreateInvoice(tester, user, "bitflyer", "JPY");
             Assert.Equal(bitflyer, bitflyer2); // Should be equal because cache
@@ -621,9 +632,9 @@ retry:
             string currency = "USD")
         {
             var storeController = user.GetController<UIStoresController>();
-            var vm = (RatesViewModel)((ViewResult)storeController.Rates()).Model;
-            vm.PreferredExchange = exchange;
-            await storeController.Rates(vm);
+            var vm = await storeController.Rates().AssertViewModelAsync<RatesViewModel>();
+            vm.PrimarySource.PreferredExchange = exchange;
+            await storeController.Rates(vm,vm.StoreId);
             var invoice2 = await user.BitPay.CreateInvoiceAsync(
                 new Invoice()
                 {

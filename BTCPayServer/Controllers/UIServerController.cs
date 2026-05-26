@@ -1,27 +1,29 @@
 #nullable enable
 using System;
 using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net;
-using System.Net.Http;
 using System.Threading.Tasks;
+using BTCPayServer.Abstractions;
 using BTCPayServer.Abstractions.Constants;
 using BTCPayServer.Abstractions.Contracts;
 using BTCPayServer.Abstractions.Extensions;
 using BTCPayServer.Abstractions.Models;
 using BTCPayServer.Configuration;
 using BTCPayServer.Data;
+using BTCPayServer.Fido2;
 using BTCPayServer.HostedServices;
 using BTCPayServer.Logging;
 using BTCPayServer.Models.ServerViewModels;
 using BTCPayServer.Models.StoreViewModels;
+using BTCPayServer.Plugins.Emails.Services;
+using BTCPayServer.Plugins.Monetization;
+using BTCPayServer.Plugins.Translations;
 using BTCPayServer.Services;
 using BTCPayServer.Services.Apps;
-using BTCPayServer.Services.Mails;
 using BTCPayServer.Services.Stores;
 using BTCPayServer.Storage.Services;
 using BTCPayServer.Storage.Services.Providers;
@@ -29,13 +31,12 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Localization;
 using Microsoft.AspNetCore.Mvc.Rendering;
-using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Localization;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using MimeKit;
 using NBitcoin;
 using NBitcoin.DataEncoders;
 using Renci.SshNet;
@@ -47,6 +48,7 @@ namespace BTCPayServer.Controllers
                AuthenticationSchemes = AuthenticationSchemes.Cookie)]
     public partial class UIServerController : Controller
     {
+        private readonly ISettingsAccessor<MonetizationSettings> _monetizationSettings;
         private readonly UserManager<ApplicationUser> _UserManager;
         private readonly UserService _userService;
         readonly SettingsRepository _SettingsRepository;
@@ -66,22 +68,23 @@ namespace BTCPayServer.Controllers
         private readonly IEnumerable<IStorageProviderService> _StorageProviderServices;
         private readonly CallbackGenerator _callbackGenerator;
         private readonly UriResolver _uriResolver;
-        private readonly EmailSenderFactory _emailSenderFactory;
         private readonly TransactionLinkProviders _transactionLinkProviders;
         private readonly LocalizerService _localizer;
+        private readonly EmailSenderFactory _emailSenderFactory;
         public IStringLocalizer StringLocalizer { get; }
+        public ViewLocalizer ViewLocalizer { get; }
 
         public UIServerController(
             UserManager<ApplicationUser> userManager,
             UserService userService,
             StoredFileRepository storedFileRepository,
             IFileService fileService,
+            EmailSenderFactory emailSenderFactory,
             IEnumerable<IStorageProviderService> storageProviderServices,
             BTCPayServerOptions options,
             SettingsRepository settingsRepository,
             PoliciesSettings policiesSettings,
             NBXplorerDashboard dashBoard,
-            IHttpClientFactory httpClientFactory,
             LightningConfigurationProvider lnConfigProvider,
             TorServices torServices,
             StoreRepository storeRepository,
@@ -92,13 +95,15 @@ namespace BTCPayServer.Controllers
             Logs logs,
             CallbackGenerator callbackGenerator,
             UriResolver uriResolver,
-            EmailSenderFactory emailSenderFactory,
             IHostApplicationLifetime applicationLifetime,
             IHtmlHelper html,
             TransactionLinkProviders transactionLinkProviders,
             LocalizerService localizer,
             IStringLocalizer stringLocalizer,
-            BTCPayServerEnvironment environment
+            ViewLocalizer viewLocalizer,
+            BTCPayServerEnvironment environment,
+            LanguagePackUpdateService languagePackUpdateService,
+            ISettingsAccessor<MonetizationSettings> monetizationSettings
         )
         {
             _policiesSettings = policiesSettings;
@@ -110,7 +115,6 @@ namespace BTCPayServer.Controllers
             _userService = userService;
             _SettingsRepository = settingsRepository;
             _dashBoard = dashBoard;
-            HttpClientFactory = httpClientFactory;
             _StoreRepository = storeRepository;
             _LnConfigProvider = lnConfigProvider;
             _torServices = torServices;
@@ -119,15 +123,17 @@ namespace BTCPayServer.Controllers
             _eventAggregator = eventAggregator;
             _externalServiceOptions = externalServiceOptions;
             Logs = logs;
+            _emailSenderFactory = emailSenderFactory;
             _callbackGenerator = callbackGenerator;
             _uriResolver = uriResolver;
-            _emailSenderFactory = emailSenderFactory;
             ApplicationLifetime = applicationLifetime;
             Html = html;
             _transactionLinkProviders = transactionLinkProviders;
+            _monetizationSettings = monetizationSettings;
             _localizer = localizer;
             Environment = environment;
             StringLocalizer = stringLocalizer;
+            ViewLocalizer = viewLocalizer;
         }
 
         [HttpGet("server/stores")]
@@ -178,7 +184,7 @@ namespace BTCPayServer.Controllers
             }
             if (!ModelState.IsValid)
                 return View(vm);
-            
+
             if (command == "changedomain")
             {
                 if (string.IsNullOrWhiteSpace(vm.DNSDomain))
@@ -327,7 +333,6 @@ namespace BTCPayServer.Controllers
             }
         }
 
-        public IHttpClientFactory HttpClientFactory { get; }
         public IHostApplicationLifetime ApplicationLifetime { get; }
         public IHtmlHelper Html { get; }
         public BTCPayServerEnvironment Environment { get; }
@@ -343,13 +348,41 @@ namespace BTCPayServer.Controllers
         {
             ViewBag.UpdateUrlPresent = _Options.UpdateUrl != null;
             ViewBag.AppsList = await GetAppSelectList();
-            ViewBag.LangDictionaries = await GetLangDictionariesSelectList();
+            ViewBag.LangTranslations = await GetLangTranslationsSelectList();
         }
 
         [HttpPost("server/policies")]
         public async Task<IActionResult> Policies([FromServices] BTCPayNetworkProvider btcPayNetworkProvider, PoliciesSettings settings, string command = "")
         {
             await UpdateViewBag();
+
+            if (command == "ResetTemplate")
+            {
+                ModelState.Clear();
+                await _StoreRepository.SetDefaultStoreTemplate(null);
+                this.TempData.SetStatusSuccess(StringLocalizer["Store template successfully unset"]);
+                return RedirectToAction(nameof(Policies));
+            }
+
+            if (command == "SetTemplate")
+            {
+                ModelState.Clear();
+                var navStore = this.HttpContext.GetNavStoreData();
+                if (navStore is null)
+                {
+                    this.TempData.SetStatusMessageModel(new()
+                    {
+                        Severity = StatusMessageModel.StatusSeverity.Error,
+                        Message = StringLocalizer["You need to select a store first"]
+                    });
+                }
+                else
+                {
+                    await _StoreRepository.SetDefaultStoreTemplate(navStore.Id, GetUserId());
+                    this.TempData.SetStatusSuccess(StringLocalizer["Store template created from store '{0}'. New stores will inherit these settings.", navStore.StoreName]);
+                }
+                return RedirectToAction(nameof(Policies));
+            }
 
             if (command == "add-domain")
             {
@@ -398,18 +431,18 @@ namespace BTCPayServer.Controllers
                     domainToAppMappingItem.AppType = apps[domainToAppMappingItem.AppId];
                 }
             }
-            
+
 
             await _SettingsRepository.UpdateSetting(settings);
             _ = _transactionLinkProviders.RefreshTransactionLinkTemplates();
-            if (_policiesSettings.LangDictionary != settings.LangDictionary)
+            if (_policiesSettings.LangTranslation != settings.LangTranslation)
                 await _localizer.Load();
             TempData[WellKnownTempData.SuccessMessage] = StringLocalizer["Policies updated successfully"].Value;
             return RedirectToAction(nameof(Policies));
         }
 
         [Route("server/services")]
-        public IActionResult Services()
+        public IActionResult Services([FromServices] IEnumerable<ServicesViewModel.OtherExternalService> otherExternalServices)
         {
             var result = new ServicesViewModel { ExternalServices = _externalServiceOptions.Value.ExternalServices.ToList() };
 
@@ -430,11 +463,11 @@ namespace BTCPayServer.Controllers
                     Link = Url.Action(nameof(SSHService))
                 });
             }
-            result.OtherExternalServices.Add(new ServicesViewModel.OtherExternalService()
+
+            foreach (var otherExternalService in  otherExternalServices)
             {
-                Name = "Dynamic DNS",
-                Link = Url.Action(nameof(DynamicDnsServices))
-            });
+                result.OtherExternalServices.Add(otherExternalService);
+            }
             foreach (var torService in _torServices.Services)
             {
                 if (torService.VirtualPort == 80)
@@ -472,10 +505,10 @@ namespace BTCPayServer.Controllers
             return apps;
         }
 
-        private async Task<List<SelectListItem>> GetLangDictionariesSelectList()
+        private async Task<List<SelectListItem>> GetLangTranslationsSelectList()
         {
-            var dictionaries = await this._localizer.GetDictionaries();
-            return dictionaries.Select(d => new SelectListItem(d.DictionaryName, d.DictionaryName)).OrderBy(d => d.Value).ToList();
+            var translations = await this._localizer.GetTranslations();
+            return translations.Select(t => new SelectListItem(t.TranslationName, t.TranslationName)).OrderBy(t => t.Value).ToList();
         }
 
         private static bool TryParseAsExternalService(TorService torService, [MaybeNullWhen(false)] out ExternalService externalService)
@@ -780,134 +813,6 @@ namespace BTCPayServer.Controllers
             return RedirectToAction(nameof(Service), new { cryptoCode = cryptoCode, serviceName = serviceName, nonce = nonce });
         }
 
-        [Route("server/services/dynamic-dns")]
-        public async Task<IActionResult> DynamicDnsServices()
-        {
-            var settings = (await _SettingsRepository.GetSettingAsync<DynamicDnsSettings>()) ?? new DynamicDnsSettings();
-            return View(settings.Services.Select(s => new DynamicDnsViewModel()
-            {
-                Settings = s
-            }).ToArray());
-        }
-        [Route("server/services/dynamic-dns/{hostname}")]
-        public async Task<IActionResult> DynamicDnsServices(string hostname)
-        {
-            var settings = (await _SettingsRepository.GetSettingAsync<DynamicDnsSettings>()) ?? new DynamicDnsSettings();
-            var service = settings.Services.FirstOrDefault(s => s.Hostname.Equals(hostname, StringComparison.OrdinalIgnoreCase));
-            if (service == null)
-                return NotFound();
-            var vm = new DynamicDnsViewModel();
-            vm.Modify = true;
-            vm.Settings = service;
-            return View(nameof(DynamicDnsService), vm);
-        }
-        [Route("server/services/dynamic-dns")]
-        [HttpPost]
-        public async Task<IActionResult> DynamicDnsService(DynamicDnsViewModel viewModel, string? command = null)
-        {
-            if (!ModelState.IsValid)
-            {
-                return View(viewModel);
-            }
-            if (command == "Save")
-            {
-                var settings = (await _SettingsRepository.GetSettingAsync<DynamicDnsSettings>()) ?? new DynamicDnsSettings();
-                var i = settings.Services.FindIndex(d => d.Hostname.Equals(viewModel.Settings.Hostname, StringComparison.OrdinalIgnoreCase));
-                if (i != -1)
-                {
-                    ModelState.AddModelError(nameof(viewModel.Settings.Hostname), "This hostname already exists");
-                    return View(viewModel);
-                }
-                if (viewModel.Settings.Hostname != null)
-                    viewModel.Settings.Hostname = viewModel.Settings.Hostname.Trim().ToLowerInvariant();
-                string errorMessage = await viewModel.Settings.SendUpdateRequest(HttpClientFactory.CreateClient());
-                if (errorMessage == null)
-                {
-                    TempData[WellKnownTempData.SuccessMessage] = StringLocalizer["The Dynamic DNS has been successfully queried, your configuration is saved"].Value;
-                    viewModel.Settings.LastUpdated = DateTimeOffset.UtcNow;
-                    settings.Services.Add(viewModel.Settings);
-                    await _SettingsRepository.UpdateSetting(settings);
-                    return RedirectToAction(nameof(DynamicDnsServices));
-                }
-                else
-                {
-                    ModelState.AddModelError(string.Empty, errorMessage);
-                    return View(viewModel);
-                }
-            }
-            else
-            {
-                return View(new DynamicDnsViewModel() { Settings = new DynamicDnsService() });
-            }
-        }
-        [Route("server/services/dynamic-dns/{hostname}")]
-        [HttpPost]
-        public async Task<IActionResult> DynamicDnsService(DynamicDnsViewModel viewModel, string hostname, string? command = null)
-        {
-            if (!ModelState.IsValid)
-            {
-                return View(viewModel);
-            }
-            var settings = (await _SettingsRepository.GetSettingAsync<DynamicDnsSettings>()) ?? new DynamicDnsSettings();
-
-            var i = settings.Services.FindIndex(d => d.Hostname.Equals(hostname, StringComparison.OrdinalIgnoreCase));
-            if (i == -1)
-                return NotFound();
-            if (viewModel.Settings.Password == null)
-                viewModel.Settings.Password = settings.Services[i].Password;
-            if (viewModel.Settings.Hostname != null)
-                viewModel.Settings.Hostname = viewModel.Settings.Hostname.Trim().ToLowerInvariant();
-            if (!viewModel.Settings.Enabled)
-            {
-                TempData[WellKnownTempData.SuccessMessage] = StringLocalizer["The Dynamic DNS service has been disabled"].Value;
-                viewModel.Settings.LastUpdated = null;
-            }
-            else
-            {
-                string errorMessage = await viewModel.Settings.SendUpdateRequest(HttpClientFactory.CreateClient());
-                if (errorMessage == null)
-                {
-                    TempData[WellKnownTempData.SuccessMessage] = StringLocalizer["The Dynamic DNS has been successfully queried, your configuration is saved"].Value;
-                    viewModel.Settings.LastUpdated = DateTimeOffset.UtcNow;
-                }
-                else
-                {
-                    ModelState.AddModelError(string.Empty, errorMessage);
-                    return View(viewModel);
-                }
-            }
-            settings.Services[i] = viewModel.Settings;
-            await _SettingsRepository.UpdateSetting(settings);
-            this.RouteData.Values.Remove(nameof(hostname));
-            return RedirectToAction(nameof(DynamicDnsServices));
-        }
-
-        [HttpGet("server/services/dynamic-dns/{hostname}/delete")]
-        public async Task<IActionResult> DeleteDynamicDnsService(string hostname)
-        {
-            var settings = await _SettingsRepository.GetSettingAsync<DynamicDnsSettings>() ?? new DynamicDnsSettings();
-            var i = settings.Services.FindIndex(d => d.Hostname.Equals(hostname, StringComparison.OrdinalIgnoreCase));
-            if (i == -1)
-                return NotFound();
-            return View("Confirm",
-                new ConfirmModel("Delete dynamic DNS service",
-                    $"Deleting the dynamic DNS service for <strong>{Html.Encode(hostname)}</strong> means your BTCPay Server will stop updating the associated DNS record periodically.", "Delete"));
-        }
-
-        [HttpPost("server/services/dynamic-dns/{hostname}/delete")]
-        public async Task<IActionResult> DeleteDynamicDnsServicePost(string hostname)
-        {
-            var settings = (await _SettingsRepository.GetSettingAsync<DynamicDnsSettings>()) ?? new DynamicDnsSettings();
-            var i = settings.Services.FindIndex(d => d.Hostname.Equals(hostname, StringComparison.OrdinalIgnoreCase));
-            if (i == -1)
-                return NotFound();
-            settings.Services.RemoveAt(i);
-            await _SettingsRepository.UpdateSetting(settings);
-            TempData[WellKnownTempData.SuccessMessage] = StringLocalizer["Dynamic DNS service successfully removed"].Value;
-            RouteData.Values.Remove(nameof(hostname));
-            return RedirectToAction(nameof(DynamicDnsServices));
-        }
-
         [HttpGet("server/services/ssh")]
         public async Task<IActionResult> SSHService()
         {
@@ -1026,7 +931,7 @@ namespace BTCPayServer.Controllers
         [HttpGet("server/services/ssh/disable")]
         public IActionResult SSHServiceDisable()
         {
-            return View("Confirm", new ConfirmModel("Disable modification of SSH settings", "This action is permanent and will remove the ability to change the SSH settings via the BTCPay Server user interface.", "Disable"));
+            return View("Confirm", new ConfirmModel(StringLocalizer["Disable modification of SSH settings"], StringLocalizer["This action is permanent and will remove the ability to change the SSH settings via the BTCPay Server user interface."], StringLocalizer["Disable"]));
         }
 
         [HttpPost("server/services/ssh/disable")]
@@ -1044,10 +949,11 @@ namespace BTCPayServer.Controllers
         {
             var server = await _SettingsRepository.GetSettingAsync<ServerSettings>() ?? new ServerSettings();
             var theme = await _SettingsRepository.GetSettingAsync<ThemeSettings>() ?? new ThemeSettings();
-            
+
             var vm = new BrandingViewModel
             {
                 ServerName = server.ServerName,
+                BaseUrl = server.BaseUrl,
                 ContactUrl = server.ContactUrl,
                 CustomTheme = theme.CustomTheme,
                 CustomThemeExtension = theme.CustomThemeExtension,
@@ -1061,8 +967,25 @@ namespace BTCPayServer.Controllers
         public async Task<IActionResult> Branding(
             BrandingViewModel vm,
             [FromForm] bool RemoveLogoFile,
-            [FromForm] bool RemoveCustomThemeFile)
+            [FromForm] bool RemoveCustomThemeFile,
+            [FromForm] string? command = null)
         {
+            if (command is "SetBaseUrl")
+                vm.BaseUrl = HttpContext.Request.GetRequestBaseUrl().ToString();
+            if (string.IsNullOrEmpty(vm.BaseUrl))
+            {
+                vm.BaseUrl = null;
+            }
+            else
+            {
+                if (!RequestBaseUrl.TryFromUrl(vm.BaseUrl, out var baseUrl))
+                    ModelState.AddModelError(nameof(vm.BaseUrl), StringLocalizer["Invalid Base URL"]);
+                vm.BaseUrl = baseUrl?.ToString();
+                vm.BaseUrl = vm.BaseUrl?.WithoutEndingSlash();
+            }
+
+            if (!ModelState.IsValid)
+                return View(vm);
             var settingsChanged = false;
             var server = await _SettingsRepository.GetSettingAsync<ServerSettings>() ?? new ServerSettings();
             var theme = await _SettingsRepository.GetSettingAsync<ThemeSettings>() ?? new ThemeSettings();
@@ -1073,13 +996,13 @@ namespace BTCPayServer.Controllers
 
             vm.LogoUrl = await _uriResolver.Resolve(this.Request.GetAbsoluteRootUri(), theme.LogoUrl);
             vm.CustomThemeCssUrl = await _uriResolver.Resolve(this.Request.GetAbsoluteRootUri(), theme.CustomThemeCssUrl);
-            
+
             if (server.ServerName != vm.ServerName)
             {
                 server.ServerName = vm.ServerName;
                 settingsChanged = true;
             }
-            
+
             if (server.ContactUrl != vm.ContactUrl)
             {
                 server.ContactUrl = !string.IsNullOrWhiteSpace(vm.ContactUrl)
@@ -1087,7 +1010,12 @@ namespace BTCPayServer.Controllers
                     : null;
                 settingsChanged = true;
             }
-            
+            if (server.BaseUrl != vm.BaseUrl)
+            {
+                server.BaseUrl = vm.BaseUrl;
+                settingsChanged = true;
+            }
+
             if (settingsChanged)
             {
                 await _SettingsRepository.UpdateSetting(server);
@@ -1194,83 +1122,6 @@ namespace BTCPayServer.Controllers
             }
 
             return View(vm);
-        }
-
-        [HttpGet("server/emails")]
-        public async Task<IActionResult> Emails()
-        {
-            var email = await _emailSenderFactory.GetSettings() ?? new EmailSettings();
-            var vm = new ServerEmailsViewModel(email)
-            {
-                EnableStoresToUseServerEmailSettings = !_policiesSettings.DisableStoresToUseServerEmailSettings
-            };
-            return View(vm);
-        }
-
-        [HttpPost("server/emails")]
-        public async Task<IActionResult> Emails(ServerEmailsViewModel model, string command)
-        {
-            if (command == "Test")
-            {
-                try
-                {
-                    if (model.PasswordSet)
-                    {
-                        var settings = await _emailSenderFactory.GetSettings() ?? new EmailSettings();
-                        model.Settings.Password = settings.Password;
-                    }
-                    model.Settings.Validate("Settings.", ModelState);
-                    if (string.IsNullOrEmpty(model.TestEmail))
-                        ModelState.AddModelError(nameof(model.TestEmail), new RequiredAttribute().FormatErrorMessage(nameof(model.TestEmail)));
-                    if (!ModelState.IsValid)
-                        return View(model);
-                    var serverSettings = await _SettingsRepository.GetSettingAsync<ServerSettings>();
-                    var serverName = string.IsNullOrEmpty(serverSettings?.ServerName) ? "BTCPay Server" : serverSettings.ServerName;
-                    using (var client = await model.Settings.CreateSmtpClient())
-                    using (var message = model.Settings.CreateMailMessage(MailboxAddress.Parse(model.TestEmail), $"{serverName}: Email test", "You received it, the BTCPay Server SMTP settings work.", false))
-                    {
-                        await client.SendAsync(message);
-                        await client.DisconnectAsync(true);
-                    }
-                    TempData[WellKnownTempData.SuccessMessage] = StringLocalizer["Email sent to {0}. Please verify you received it.", model.TestEmail].Value;
-                }
-                catch (Exception ex)
-                {
-                    TempData[WellKnownTempData.ErrorMessage] = ex.Message;
-                }
-                return View(model);
-            }
-
-            if (_policiesSettings.DisableStoresToUseServerEmailSettings == model.EnableStoresToUseServerEmailSettings)
-            {
-                _policiesSettings.DisableStoresToUseServerEmailSettings = !model.EnableStoresToUseServerEmailSettings;
-                await _SettingsRepository.UpdateSetting(_policiesSettings);
-            }
-
-            if (command == "ResetPassword")
-            {
-                var settings = await _SettingsRepository.GetSettingAsync<EmailSettings>() ?? new EmailSettings();
-                settings.Password = null;
-                await _SettingsRepository.UpdateSetting(settings);
-                TempData[WellKnownTempData.SuccessMessage] = StringLocalizer["Email server password reset"].Value;
-                return RedirectToAction(nameof(Emails));
-            }
-            
-            // save
-            if (model.Settings.From is not null && !MailboxAddressValidator.IsMailboxAddress(model.Settings.From))
-            {
-                ModelState.AddModelError("Settings.From", StringLocalizer["Invalid email"]);
-                return View(model);
-            }
-            var oldSettings = await _emailSenderFactory.GetSettings() ?? new EmailSettings();
-            if (new ServerEmailsViewModel(oldSettings).PasswordSet)
-            {
-                model.Settings.Password = oldSettings.Password;
-            }
-            
-            await _SettingsRepository.UpdateSetting(model.Settings);
-            TempData[WellKnownTempData.SuccessMessage] = StringLocalizer["Email settings saved"].Value;
-            return RedirectToAction(nameof(Emails));
         }
 
         [Route("server/logs/{file?}")]

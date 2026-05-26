@@ -6,36 +6,23 @@ using BTCPayServer.Abstractions.Contracts;
 using BTCPayServer.Data;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace BTCPayServer.Services.Notifications
 {
     public class UserNotificationsUpdatedEvent
     {
         public string UserId { get; set; }
-        public override string ToString()
-        {
-            return string.Empty;
-        }
     }
-    public class NotificationSender
+    public class NotificationSender(ApplicationDbContextFactory contextFactory, IServiceScopeFactory scopeFactory, NotificationManager notificationManager)
     {
-        private readonly ApplicationDbContextFactory _contextFactory;
-        private readonly UserManager<ApplicationUser> _userManager;
-        private readonly NotificationManager _notificationManager;
-
-        public NotificationSender(ApplicationDbContextFactory contextFactory, UserManager<ApplicationUser> userManager, NotificationManager notificationManager)
-        {
-            _contextFactory = contextFactory;
-            _userManager = userManager;
-            _notificationManager = notificationManager;
-        }
 
         public async Task SendNotification(INotificationScope scope, BaseNotification notification)
         {
             ArgumentNullException.ThrowIfNull(scope);
             ArgumentNullException.ThrowIfNull(notification);
             var users = await GetUsers(scope, notification.Identifier);
-            await using (var db = _contextFactory.CreateContext())
+            await using (var db = contextFactory.CreateContext())
             {
                 foreach (var uid in users)
                 {
@@ -52,10 +39,7 @@ namespace BTCPayServer.Services.Notifications
                 }
                 await db.SaveChangesAsync();
             }
-            foreach (string user in users)
-            {
-                _notificationManager.InvalidateNotificationCache(user);
-            }
+            notificationManager.InvalidateNotificationCache(users);
         }
 
         public BaseNotification GetBaseNotification(NotificationData notificationData)
@@ -65,7 +49,7 @@ namespace BTCPayServer.Services.Notifications
 
         private async Task<string[]> GetUsers(INotificationScope scope, string notificationIdentifier)
         {
-            await using var ctx = _contextFactory.CreateContext();
+            await using var ctx = contextFactory.CreateContext();
 
             var split = notificationIdentifier.Split('_', StringSplitOptions.None);
             var terms = new List<string>();
@@ -78,8 +62,8 @@ namespace BTCPayServer.Services.Notifications
             {
                 case AdminScope _:
                     {
-                        query = _userManager.GetUsersInRoleAsync(Roles.ServerAdmin).Result.AsQueryable();
-
+                        using var s = scopeFactory.CreateScope();
+                        query = s.ServiceProvider.GetService<UserManager<ApplicationUser>>().GetUsersInRoleAsync(Roles.ServerAdmin).Result.AsQueryable();
                         break;
                     }
                 case StoreScope s:
@@ -101,7 +85,7 @@ namespace BTCPayServer.Services.Notifications
             query = query.Where(store => store.DisabledNotifications != "all");
             foreach (string term in terms)
             {
-                // Cannot specify StringComparison as EF core does not support it and would attempt client-side evaluation 
+                // Cannot specify StringComparison as EF core does not support it and would attempt client-side evaluation
                 // ReSharper disable once CA1307
 #pragma warning disable CA1307 // Specify StringComparison
                 query = query.Where(user => user.DisabledNotifications == null || !user.DisabledNotifications.Contains(term));

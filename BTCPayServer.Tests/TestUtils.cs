@@ -6,8 +6,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
-using NBitcoin;
-using OpenQA.Selenium;
 using Xunit;
 using Xunit.Sdk;
 
@@ -15,6 +13,7 @@ namespace BTCPayServer.Tests
 {
     public static class TestUtils
     {
+        public const int LongRunningTestTimeout = 60_000; // 60s
 #if DEBUG && !SHORT_TIMEOUT
         public const int TestTimeout = 600_000;
 #else
@@ -22,7 +21,8 @@ namespace BTCPayServer.Tests
 #endif
         public static DirectoryInfo TryGetSolutionDirectoryInfo()
         {
-            var directory = new DirectoryInfo(TestDirectory);
+            var btcPayDirectory = ((OutputPathAttribute)typeof(TestUtils).Assembly.GetCustomAttributes(typeof(OutputPathAttribute), true)[0]).BuiltPath;
+            var directory = new DirectoryInfo(btcPayDirectory);
             while (directory != null && !directory.GetFiles("*.sln").Any())
             {
                 directory = directory.Parent;
@@ -32,9 +32,9 @@ namespace BTCPayServer.Tests
 
         static TestUtils()
         {
-            TestDirectory = ((OutputPathAttribute)typeof(TestUtils).Assembly.GetCustomAttributes(typeof(OutputPathAttribute), true)[0]).BuiltPath;
+            TestDirectory = AppContext.BaseDirectory;
         }
-        public readonly static string TestDirectory;
+        public static readonly string TestDirectory;
 
         public static string GetTestDataFullPath(string relativeFilePath)
         {
@@ -46,11 +46,11 @@ namespace BTCPayServer.Tests
             return Path.Combine(directory.FullName, "TestData", relativeFilePath);
         }
 
+        public static DateTimeOffset RoundSeconds(DateTimeOffset dateTimeOffset)
+            => new DateTimeOffset(dateTimeOffset.Year, dateTimeOffset.Month, dateTimeOffset.Day, dateTimeOffset.Hour, dateTimeOffset.Minute, dateTimeOffset.Second, dateTimeOffset.Offset);
+
         public static T AssertType<T>(this object obj)
-        {
-            Assert.IsType<T>(obj);
-            return (T)obj;
-        }
+            => Assert.IsType<T>(obj);
 
         public static FormFile GetFormFile(string filename, string content)
         {
@@ -93,10 +93,6 @@ namespace BTCPayServer.Tests
                 {
                     act();
                     break;
-                }
-                catch (WebDriverException) when (!cts.Token.IsCancellationRequested)
-                {
-                    cts.Token.WaitHandle.WaitOne(500);
                 }
                 catch (XunitException) when (!cts.Token.IsCancellationRequested)
                 {

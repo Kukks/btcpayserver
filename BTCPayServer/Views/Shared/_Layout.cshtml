@@ -1,9 +1,7 @@
-@using BTCPayServer.Components.StoreSelector
-@using BTCPayServer.Components.MainNav
 @inject Microsoft.AspNetCore.Http.IHttpContextAccessor _context;
 @inject BTCPayServer.Services.BTCPayServerEnvironment _env
-@inject SignInManager<ApplicationUser> _signInManager
 @inject UserManager<ApplicationUser> _userManager
+@inject SignInManager<ApplicationUser> _signInManager
 
 @{
     var user = await _userManager.GetUserAsync(User);
@@ -24,10 +22,9 @@
         <button id="mainMenuToggle" class="mainMenuButton" type="button" data-bs-toggle="offcanvas" data-bs-target="#mainNav" aria-controls="mainNav" aria-expanded="false" aria-label="Toggle navigation">
             <span>Menu</span>
         </button>
-        <vc:store-selector />
         @if (_signInManager.IsSignedIn(User))
         {
-			<component type="typeof(BTCPayServer.Blazor.NotificationsDropDown)" render-mode="ServerPrerendered" />
+            <vc:global-nav />
         }
     </div>
     <vc:main-nav />
@@ -44,17 +41,19 @@
 <main id="mainContent">
     @if (!_env.IsSecure(_context.HttpContext))
     {
-        <div id="insecureEnv" class="alert alert-danger alert-dismissible" style="position:absolute; top:75px;" role="alert">
+        <div id="insecureEnv" class="alert alert-danger alert-dismissible" role="alert">
             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="@StringLocalizer["Close"]">
                 <vc:icon symbol="close"/>
             </button>
             <span text-translate="true">Your access to BTCPay Server is over an unsecured network. If you are using the docker deployment method with NGINX and HTTPS is not available, you probably did not configure your DNS settings correctly. We disabled the register and login link so you don't leak your credentials.</span>
         </div>
     }
+    <vc:ui-extension-point location="layout-banner" />
+
     <section>
         @RenderBody()
     </section>
-    
+
     <partial name="_Footer"/>
     <partial name="LayoutFoot"/>
 

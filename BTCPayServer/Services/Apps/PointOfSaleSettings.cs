@@ -1,4 +1,5 @@
 using BTCPayServer.Client.Models;
+using Newtonsoft.Json;
 using PosViewType = BTCPayServer.Plugins.PointOfSale.PosViewType;
 
 namespace BTCPayServer.Services.Apps
@@ -83,6 +84,9 @@ namespace BTCPayServer.Services.Apps
         public string Currency { get; set; }
         public string Template { get; set; }
         public bool EnableShoppingCart { get; set; }
+        [JsonConverter(typeof(JsonConverters.NumericStringJsonConverter))]
+        public decimal DefaultTaxRate { get; set; }
+        public bool TaxIncludedInPrice { get; set; }
         public PosViewType DefaultView { get; set; }
         public bool ShowItems { get; set; }
         public bool ShowCustomAmount { get; set; }
@@ -105,5 +109,6 @@ namespace BTCPayServer.Services.Apps
         public string NotificationUrl { get; set; }
         public string RedirectUrl { get; set; }
         public bool? RedirectAutomatically { get; set; }
+        public bool? DisableZeroAmountInvoice { get; set; }
     }
 }

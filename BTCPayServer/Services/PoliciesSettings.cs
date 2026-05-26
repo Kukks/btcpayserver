@@ -17,7 +17,7 @@ namespace BTCPayServer.Services
         [JsonProperty(DefaultValueHandling = DefaultValueHandling.Populate)]
         [Display(Name = "Disable public user registration")]
         public bool LockSubscription { get; set; }
-        
+
         [JsonIgnore]
         [Display(Name = "Enable public user registration")]
         public bool EnableRegistration
@@ -27,9 +27,9 @@ namespace BTCPayServer.Services
         }
 
         [DefaultValue("English")]
-        [JsonProperty(DefaultValueHandling = DefaultValueHandling.Populate)]
+        [JsonProperty("LangDictionary", DefaultValueHandling = DefaultValueHandling.Populate)]
         [Display(Name = "Backend's language")]
-        public string LangDictionary { get; set; } = "English";
+        public string LangTranslation { get; set; } = "English";
 
         [JsonProperty(DefaultValueHandling = DefaultValueHandling.Populate)]
         [Display(Name = "Admin must approve new users")]
@@ -38,7 +38,7 @@ namespace BTCPayServer.Services
         [JsonProperty(DefaultValueHandling = DefaultValueHandling.Populate)]
         [Display(Name = "Discourage search engines from indexing this site")]
         public bool DiscourageSearchEngines { get; set; }
-        
+
         [JsonIgnore]
         [Display(Name = "Search engines can index this site")]
         public bool AllowSearchEngines
@@ -52,19 +52,18 @@ namespace BTCPayServer.Services
 
         [Display(Name = "Non-admins can create Hot Wallets for their Store")]
         public bool AllowHotWalletForAll { get; set; }
-
-        [Display(Name = "Non-admins can import Hot Wallets for their Store")]
-        public bool AllowHotWalletRPCImportForAll { get; set; }
+        [Display(Name = "Non-admins can create Cold Wallets for their Store")]
+        public bool AllowCreateColdWalletForAll { get; set; }
 
         [Display(Name = "Check releases on GitHub and notify when new BTCPay Server version is available")]
         public bool CheckForNewVersions { get; set; }
 
         [Display(Name = "Disable stores from using the server's email settings as backup")]
         public bool DisableStoresToUseServerEmailSettings { get; set; }
-        
+
         [Display(Name = "Non-admins cannot access the User Creation API Endpoint")]
         public bool DisableNonAdminCreateUserApi { get; set; }
-        
+
         [JsonIgnore]
         [Display(Name = "Non-admins can access the User Creation API Endpoint")]
         public bool EnableNonAdminCreateUserApi
@@ -80,8 +79,6 @@ namespace BTCPayServer.Services
 
         [Display(Name = "Show plugins in pre-release")]
         public bool PluginPreReleases { get; set; }
-        [Display(Name = "Select the Default Currency during Store Creation")]
-        public string DefaultCurrency { get; set; }
 
         public bool DisableSSHService { get; set; }
 
@@ -95,9 +92,19 @@ namespace BTCPayServer.Services
         public List<DomainToAppMappingItem> DomainToAppMapping { get; set; } = new List<DomainToAppMappingItem>();
         [Display(Name = "Enable experimental features")]
         public bool Experimental { get; set; }
-        
+
         [Display(Name = "Default role for users on a new store")]
         public string DefaultRole { get; set; }
+
+        [Display(Name = "Default store template")]
+        public JObject DefaultStoreTemplate { get; set; }
+
+        [Range(0, int.MaxValue)]
+        [Display(Name = "Maximum number of stores non-admins can create")]
+        public int? StoreQuota { get; set; }
+
+        [Display(Name = "Register page redirect URL")]
+        public string RegisterPageRedirect { get; set; }
 
         public class BlockExplorerOverrideItem
         {

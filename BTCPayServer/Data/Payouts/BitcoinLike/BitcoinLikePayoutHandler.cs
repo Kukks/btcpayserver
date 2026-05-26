@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using BTCPayServer;
@@ -15,6 +14,7 @@ using BTCPayServer.Logging;
 using BTCPayServer.Payments;
 using BTCPayServer.Payments.Bitcoin;
 using BTCPayServer.Payouts;
+using BTCPayServer.Plugins.Wallets;
 using BTCPayServer.Services;
 using BTCPayServer.Services.Invoices;
 using BTCPayServer.Services.Notifications;
@@ -24,7 +24,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using NBitcoin;
 using NBitcoin.Payment;
-using NBitcoin.RPC;
 using NBXplorer.Models;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -178,7 +177,7 @@ public class BitcoinLikePayoutHandler : IPayoutHandler, IHasNetwork
             await UpdatePayoutsAwaitingForPayment(newTransaction, addressTrackedSource);
         }
 
-        if ((o is NewBlockEvent nbe && nbe.PaymentMethodId == PaymentMethodId) || 
+        if ((o is NewBlockEvent nbe && nbe.PaymentMethodId == PaymentMethodId) ||
             (o is NewOnChainTransactionEvent nct && nct.PaymentMethodId == PaymentMethodId))
         {
             await UpdatePayoutsInProgress();
@@ -317,11 +316,14 @@ public class BitcoinLikePayoutHandler : IPayoutHandler, IHasNetwork
             }
         }
         if (bip21.Any())
-            return new RedirectToActionResult("WalletSend", "UIWallets", new { walletId = new WalletId(storeId, Network.CryptoCode).ToString(), bip21 });
-        return new RedirectToActionResult("Payouts", "UIWallets", new
+            return new RedirectToActionResult("WalletSend", "UIWallets", new { area = WalletsPlugin.Area, walletId = new WalletId(storeId, Network.CryptoCode).ToString(), bip21 });
+        return new RedirectToActionResult("Payouts", "UIStorePullPayments", new
         {
-            walletId = new WalletId(storeId, Network.CryptoCode).ToString(),
-            pullPaymentId = pullPaymentIds.Length == 1 ? pullPaymentIds.First() : null
+            area = "",
+            storeId,
+            pullPaymentId = pullPaymentIds.Length == 1 ? pullPaymentIds.First() : null,
+            payoutMethodId = PayoutMethodId.ToString(),
+            payoutState = PayoutState.AwaitingPayment
         });
     }
 
@@ -380,7 +382,7 @@ public class BitcoinLikePayoutHandler : IPayoutHandler, IHasNetwork
             var destinationSum =
                 newTransaction.NewTransactionEvent.Outputs.Sum(output => output.Value.GetValue(Network));
             var destination = addressTrackedSource.Address.ToString();
-            
+
 
             await using var ctx = _dbContextFactory.CreateContext();
             var payout = await ctx.Payouts
@@ -395,7 +397,6 @@ public class BitcoinLikePayoutHandler : IPayoutHandler, IHasNetwork
 
             if (payout is null)
                 return;
-            var payoutBlob = payout.GetBlob(_jsonSerializerSettings);
             if (payout.Amount is null ||
                 // The round up here is not strictly necessary, this is temporary to fix existing payout before we
                 // were properly roundup the crypto amount

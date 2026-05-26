@@ -2,23 +2,14 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection.Metadata;
 using System.Threading;
 using System.Threading.Tasks;
-using AngleSharp.Dom;
 using BTCPayServer.Abstractions.Contracts;
 using BTCPayServer.Data;
-using BTCPayServer.Migrations;
 using BTCPayServer.Services.Invoices;
-using Dapper;
-using Google.Apis.Logging;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using NBitcoin;
-using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
-using static BTCPayServer.Controllers.UIInvoiceController;
 
 namespace BTCPayServer.HostedServices;
 
@@ -73,7 +64,7 @@ public class InvoiceBlobMigratorHostedService : BlobMigratorHostedService<Invoic
                 }
                 pay.SetBlob(paymentEntity);
 
-                if (pay.PaymentMethodId != pay.MigratedPaymentMethodId)
+                if (pay.MigratedPaymentMethodId is not null && pay.PaymentMethodId != pay.MigratedPaymentMethodId)
                 {
                     ctx.Add(pay);
                     ctx.Payments.Remove(new PaymentData() { Id = pay.Id, PaymentMethodId = pay.MigratedPaymentMethodId });

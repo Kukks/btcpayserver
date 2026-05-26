@@ -88,11 +88,8 @@
                 ]
             }
         },
-        "/api/v1/stores/{storeId}/webhooks/{webhookId}": {
+        "/api/v1/webhooks/{webhookId}": {
             "parameters": [
-                {
-                    "$ref": "#/components/parameters/StoreId"
-                },
                 {
                     "$ref": "#/components/parameters/WebhookId"
                 }
@@ -101,8 +98,8 @@
                 "tags": [
                     "Webhooks"
                 ],
-                "summary": "Get a webhook of a store",
-                "description": "View webhook of a store",
+                "summary": "Get a webhook",
+                "description": "View webhook",
                 "operationId": "Webhooks_GetWebhook",
                 "responses": {
                     "200": {
@@ -202,11 +199,8 @@
                 ]
             }
         },
-        "/api/v1/stores/{storeId}/webhooks/{webhookId}/deliveries": {
+        "/api/v1/webhooks/{webhookId}/deliveries": {
             "parameters": [
-                {
-                    "$ref": "#/components/parameters/StoreId"
-                },
                 {
                     "$ref": "#/components/parameters/WebhookId"
                 }
@@ -254,11 +248,8 @@
                 ]
             }
         },
-        "/api/v1/stores/{storeId}/webhooks/{webhookId}/deliveries/{deliveryId}": {
+        "/api/v1/webhooks/{webhookId}/deliveries/{deliveryId}": {
             "parameters": [
-                {
-                    "$ref": "#/components/parameters/StoreId"
-                },
                 {
                     "$ref": "#/components/parameters/WebhookId"
                 },
@@ -285,7 +276,7 @@
                         }
                     },
                     "404": {
-                        "description": "The delivery does not exists."
+                        "description": "The delivery does not exist."
                     }
                 },
                 "security": [
@@ -298,11 +289,8 @@
                 ]
             }
         },
-        "/api/v1/stores/{storeId}/webhooks/{webhookId}/deliveries/{deliveryId}/request": {
+        "/api/v1/webhooks/{webhookId}/deliveries/{deliveryId}/request": {
             "parameters": [
-                {
-                    "$ref": "#/components/parameters/StoreId"
-                },
                 {
                     "$ref": "#/components/parameters/WebhookId"
                 },
@@ -330,7 +318,7 @@
                         }
                     },
                     "404": {
-                        "description": "The delivery does not exists."
+                        "description": "The delivery does not exist."
                     },
                     "409": {
                         "description": "`webhookdelivery-pruned`: This webhook delivery has been pruned, so it can't be redelivered."
@@ -346,11 +334,8 @@
                 ]
             }
         },
-        "/api/v1/stores/{storeId}/webhooks/{webhookId}/deliveries/{deliveryId}/redeliver": {
+        "/api/v1/webhooks/{webhookId}/deliveries/{deliveryId}/redeliver": {
             "parameters": [
-                {
-                    "$ref": "#/components/parameters/StoreId"
-                },
                 {
                     "$ref": "#/components/parameters/WebhookId"
                 },
@@ -367,7 +352,7 @@
                 "description": "Redeliver the delivery",
                 "responses": {
                     "200": {
-                        "description": "The new delivery id being broadcasted. (Broadcast happen asynchronously with this call)",
+                        "description": "The new delivery id being broadcasted. (Broadcast happens asynchronously with this call)",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -377,7 +362,7 @@
                         }
                     },
                     "404": {
-                        "description": "The delivery does not exists."
+                        "description": "The delivery does not exist."
                     },
                     "409": {
                         "description": "`webhookdelivery-pruned`: This webhook delivery has been pruned, so it can't be redelivered."
@@ -433,7 +418,17 @@
                     "timestamp": {
                         "type": "number",
                         "nullable": false,
-                        "description": "Timestamp of when the delivery got broadcasted",
+                        "description": "Timestamp of when the delivery should have been broadcasted",
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/UnixTimestamp"
+                            }
+                        ]
+                    },
+                    "deliveryTime": {
+                        "type": "number",
+                        "nullable": false,
+                        "description": "Timestamp of when the delivery has actually been broadcasted. A delay with `timestamp` means your service either failed to process earlier deliveries or is taking too long to respond.",
                         "allOf": [
                             {
                                 "$ref": "#/components/schemas/UnixTimestamp"
@@ -565,7 +560,7 @@
                                 "items": {
                                     "type": "string"
                                 },
-                                "description": "If `everything` is false, the specific events that the endpoint is interested in. Current events are: `InvoiceCreated`, `InvoiceReceivedPayment`, `InvoiceProcessing`, `InvoiceExpired`, `InvoiceSettled`, `InvoiceInvalid`.",
+                                "description": "If `everything` is false, the specific events that the endpoint is interested in. Current events are: `InvoiceCreated`, `InvoiceReceivedPayment`, `InvoiceProcessing`, `InvoiceExpired`, `InvoiceSettled`, `InvoiceInvalid`, `InvoicePaymentSettled`, `PaymentRequestCreated`, `PaymentRequestUpdated`, `PaymentRequestArchived`, `PaymentRequestStatusChanged`, `PayoutCreated`, `PayoutApproved`, `PayoutUpdated`, `SubscriberCreated`, `SubscriberCredited`, `SubscriberCharged`, `SubscriberActivated`, `SubscriberPhaseChanged`, `SubscriberDisabled`, `PaymentReminder`, `PlanStarted`, `SubscriberNeedUpgrade`.",
                                 "nullable": false
                             }
                         }
@@ -599,7 +594,7 @@
                     "type": {
                         "type": "string",
                         "nullable": false,
-                        "description": "The type of this event, current available are `InvoiceCreated`, `InvoiceReceivedPayment`, `InvoiceProcessing`, `InvoiceExpired`, `InvoiceSettled`, `InvoiceInvalid`, and `InvoicePaymentSettled`."
+                        "description": "The type of this event, current available are `InvoiceCreated`, `InvoiceReceivedPayment`, `InvoiceProcessing`, `InvoiceExpired`, `InvoiceSettled`, `InvoiceInvalid`, `InvoicePaymentSettled`, `PaymentRequestCreated`, `PaymentRequestUpdated`, `PaymentRequestArchived`, `PaymentRequestStatusChanged`, `PayoutCreated`, `PayoutApproved`, `PayoutUpdated`, `SubscriberCreated`, `SubscriberCredited`, `SubscriberCharged`, `SubscriberActivated`, `SubscriberPhaseChanged`, `SubscriberDisabled`, `PaymentReminder`, `PlanStarted`, and `SubscriberNeedUpgrade`."
                     },
                     "timestamp": {
                         "description": "The timestamp when this delivery has been created",
@@ -654,7 +649,7 @@
                         "properties": {
                             "manuallyMarked": {
                                 "type": "boolean",
-                                "description": "Whether the invoice have been manually marked as confirmed",
+                                "description": "Whether the invoice has been manually marked as confirmed",
                                 "nullable": false
                             }
                         }
@@ -682,7 +677,7 @@
                         "properties": {
                             "manuallyMarked": {
                                 "type": "boolean",
-                                "description": "Whether the invoice have been manually marked as confirmed. If false, this invoice has received payments which could not confirm in time.",
+                                "description": "Whether the invoice has been manually marked as confirmed. If false, this invoice has received payments which could not confirm in time.",
                                 "nullable": false
                             }
                         }
@@ -905,7 +900,7 @@
             "post": {
                 "operationId": "Webhook_InvoicePaymentSettled",
                 "summary": "InvoicePaymentSettled",
-                "description": "An payment relating to an invoice has settled",
+                "description": "A payment relating to an invoice has settled",
                 "parameters": [
                     {
                         "in": "header",

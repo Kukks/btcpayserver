@@ -1,10 +1,11 @@
 @model ViewFilesViewModel
 @{
-    ViewData.SetActivePage(ServerNavPages.Files, StringLocalizer["File Storage"]);
+    ViewData.SetLayoutModel(new LayoutModel(nameof(ServerNavPages.Files), StringLocalizer["File Storage"])
+        .SetCategory(WellKnownCategories.Server));
 }
 
 <div class="sticky-header">
-	<h2 class="my-1" text-translate="true">@ViewData["Title"]</h2>
+	<h2 class="my-1">@ViewData["Title"]</h2>
     <a asp-action="storage" asp-route-forceChoice="true" asp-route-returnurl="@ViewData["ReturnUrl"]" class="btn btn-secondary d-flex align-items-center">
         <vc:icon symbol="settings" />
     </a>
@@ -54,7 +55,7 @@ else
                                 <input id="@fileId-name" class="form-control-plaintext" readonly="readonly" value="@file.FileName">
                                 <label text-translate="true">File name</label>
                             </div>
-                            <button type="button" class="btn btn-link" data-clipboard="@file.FileName">
+                            <button type="button" class="btn btn-link clipboard-button" data-clipboard="@file.FileName">
                                 <vc:icon symbol="actions-copy" />
                             </button>
                         </div>
@@ -65,7 +66,7 @@ else
                                 <input id="@fileId" class="form-control-plaintext" readonly="readonly" value="@fileId">
                                 <label text-translate="true">File Id</label>
                             </div>
-                            <button type="button" class="btn btn-link" data-clipboard="@fileId">
+                            <button type="button" class="btn btn-link clipboard-button" data-clipboard="@fileId">
                                 <vc:icon symbol="actions-copy" />
                             </button>
                         </div>
@@ -76,12 +77,12 @@ else
                                 <input id="@fileId-url" class="form-control-plaintext" readonly="readonly" value="@url">
                                 <label text-translate="true">Permanent Url</label>
                             </div>
-                            <button type="button" class="btn btn-link" data-clipboard="@url">
+                            <button type="button" class="btn btn-link clipboard-button" data-clipboard="@url">
                                 <vc:icon symbol="actions-copy" />
                             </button>
                         </div>
                     </div>
-                    <button type="button" class="btn btn-link" data-clipboard="@url">
+                    <button type="button" class="btn btn-link clipboard-button" data-clipboard="@url">
                         <vc:icon symbol="copy" />
                     </button>
                 </div>

@@ -89,7 +89,7 @@ namespace BTCPayServer.Controllers.Greenfield
 
             if (request.AutoApproveClaims)
             {
-                if (!(await _authorizationService.AuthorizeAsync(User, null,
+                if (!(await _authorizationService.AuthorizeAsync(User, storeId,
                         new PolicyRequirement(Policies.CanCreatePullPayments))).Succeeded)
                 {
                     return this.CreateAPIPermissionError(Policies.CanCreatePullPayments);
@@ -125,23 +125,27 @@ namespace BTCPayServer.Controllers.Greenfield
                 ModelState.AddModelError(nameof(request.BOLT11Expiration), $"The BOLT11 expiration should be positive");
             }
 
-            var supported = _payoutHandlers.GetSupportedPayoutMethods(HttpContext.GetStoreData());
-            request.PayoutMethods ??= supported.Select(s => s.ToString()).ToArray();
-            for (int i = 0; i < request.PayoutMethods.Length; i++)
+			var storeData = HttpContext.GetStoreData();
+			var supported = _payoutHandlers.GetSupportedPayoutMethods(storeData);
+            if (request.PayoutMethods is not null)
             {
-                var pmi = request.PayoutMethods[i] is string pm ? PayoutMethodId.TryParse(pm) : null;
-                if (pmi is null || !supported.Contains(pmi))
+                for (int i = 0; i < request.PayoutMethods.Length; i++)
                 {
-                    request.AddModelError(paymentRequest => paymentRequest.PayoutMethods[i], "Invalid or unsupported payment method", this);
+                    var pmi = request.PayoutMethods[i] is string pm ? PayoutMethodId.TryParse(pm) : null;
+                    if (pmi is null || !supported.Contains(pmi))
+                    {
+                        request.AddModelError(paymentRequest => paymentRequest.PayoutMethods[i], "Invalid or unsupported payment method", this);
+                    }
                 }
-            }
-            if (request.PayoutMethods.Length is 0)
-            {
-                ModelState.AddModelError(nameof(request.PayoutMethods), "At least one payout method is required");
+                if (request.PayoutMethods.Length is 0)
+                {
+                    ModelState.AddModelError(nameof(request.PayoutMethods), "At least one payout method is required");
+                }
             }
             if (!ModelState.IsValid)
                 return this.CreateValidationError(ModelState);
-            var ppId = await _pullPaymentService.CreatePullPayment(storeId, request);
+
+			var ppId = await _pullPaymentService.CreatePullPayment(storeData, request);
             var pp = await _pullPaymentService.GetPullPayment(ppId, false);
             return this.Ok(CreatePullPaymentData(pp));
         }
@@ -372,14 +376,14 @@ retry:
         public async Task<IActionResult> GetPullPaymentLNURL(string pullPaymentId)
         {
             var pp = await _pullPaymentService.GetPullPayment(pullPaymentId, false);
-            if (pp is null)
+            if (pp is null || _networkProvider.DefaultNetwork?.CryptoCode is not {} cryptoCode)
                 return PullPaymentNotFound();
 
             if (_pullPaymentService.SupportsLNURL(pp))
             {
                 var lnurlEndpoint = new Uri(Url.Action("GetLNURLForPullPayment", "UILNURL", new
                 {
-                    cryptoCode = _networkProvider.DefaultNetwork.CryptoCode,
+                    cryptoCode,
                     pullPaymentId
                 }, Request.Scheme, Request.Host.ToString())!);
 
@@ -443,7 +447,7 @@ retry:
                 ModelState.AddModelError(nameof(request.Destination), destination.error ?? "The destination is invalid for the payment specified");
                 return this.CreateValidationError(ModelState);
             }
-            
+
             var amt = ClaimRequest.GetClaimedAmount(destination.destination, request.Amount, payoutHandler.Currency, pp.Currency);
             if (amt is ClaimRequest.ClaimedAmountResult.Error err)
             {
@@ -475,7 +479,7 @@ retry:
         {
             if (request?.Approved is true)
             {
-                if (!(await _authorizationService.AuthorizeAsync(User, null,
+                if (!(await _authorizationService.AuthorizeAsync(User, storeId,
                         new PolicyRequirement(Policies.CanCreatePullPayments))).Succeeded)
                 {
                     return this.CreateAPIPermissionError(Policies.CanCreatePullPayments);
@@ -578,18 +582,16 @@ retry:
         }
 
         [HttpDelete("~/api/v1/stores/{storeId}/pull-payments/{pullPaymentId}")]
+        [HttpDelete("~/api/v1/pull-payments/{pullPaymentId}")]
         [Authorize(Policy = Policies.CanArchivePullPayments, AuthenticationSchemes = AuthenticationSchemes.Greenfield)]
-        public async Task<IActionResult> ArchivePullPayment(string storeId, string pullPaymentId)
+        public async Task<IActionResult> ArchivePullPayment(string? storeId, string pullPaymentId)
         {
-            using var ctx = _dbContextFactory.CreateContext();
-            var pp = await ctx.PullPayments.FindAsync(pullPaymentId);
-            if (pp is null || pp.StoreId != storeId)
+            var pp = HttpContext.GetPullPaymentDataOrNull();
+            if (pp is null)
                 return PullPaymentNotFound();
-            await _pullPaymentService.Cancel(new PullPaymentHostedService.CancelRequest(pullPaymentId));
+            await _pullPaymentService.Cancel(new PullPaymentHostedService.CancelRequest(pp.Id));
             return Ok();
         }
-
-
 
         [HttpGet("~/api/v1/stores/{storeId}/payouts")]
         [Authorize(Policy = Policies.CanViewPayouts, AuthenticationSchemes = AuthenticationSchemes.Greenfield)]

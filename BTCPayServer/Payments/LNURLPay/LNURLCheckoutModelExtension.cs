@@ -4,7 +4,6 @@ using BTCPayServer.Services;
 using System.Collections.Generic;
 using System.Linq;
 using BTCPayServer.Payments.Lightning;
-using NBitcoin;
 
 namespace BTCPayServer.Payments.LNURLPay
 {
@@ -22,7 +21,6 @@ namespace BTCPayServer.Payments.LNURLPay
             _displayFormatter = displayFormatter;
             paymentLinkExtension = paymentLinkExtensions.Single(p => p.PaymentMethodId == PaymentMethodId);
             handler = (LNURLPayPaymentHandler)handlers[PaymentMethodId];
-            var isBTC = PaymentTypes.LNURL.GetPaymentMethodId("BTC") == paymentMethodId;
         }
         public PaymentMethodId PaymentMethodId { get; }
 

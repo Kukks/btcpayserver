@@ -10,7 +10,6 @@ using BTCPayServer.Client.Models;
 using BTCPayServer.Data;
 using BTCPayServer.Events;
 using BTCPayServer.Logging;
-using BTCPayServer.Models.InvoicingModels;
 using BTCPayServer.Payments;
 using Dapper;
 using Microsoft.EntityFrameworkCore;
@@ -58,7 +57,7 @@ namespace BTCPayServer.Services.Invoices
                 Id = Encoders.Base58.EncodeData(RandomUtils.GetBytes(16)),
                 StoreId = storeId,
                 Version = InvoiceEntity.Lastest_Version,
-                // Truncating was an unintended side effect of previous code. Might want to remove that one day 
+                // Truncating was an unintended side effect of previous code. Might want to remove that one day
                 InvoiceTime = DateTimeOffset.UtcNow.TruncateMilliSeconds(),
                 Metadata = new InvoiceMetadata(),
 #pragma warning disable CS0618
@@ -76,6 +75,18 @@ namespace BTCPayServer.Services.Invoices
                 .Select(a => a.InvoiceData)
             .FirstOrDefaultAsync());
             return row is null ? null : ToEntity(row);
+        }
+
+        public async Task AddAddressInvoice(string invoiceId, PaymentMethodId paymentMethodId, string address)
+        {
+            await using var context = _applicationDbContextFactory.CreateContext();
+            await UpsertAddressInvoice(context, invoiceId, paymentMethodId.ToString(), address);
+        }
+
+        private static async Task UpsertAddressInvoice(ApplicationDbContext context, string invoiceId, string paymentMethodId, string address)
+        {
+            await context.Database.ExecuteSqlInterpolatedAsync(
+                $"""INSERT INTO "AddressInvoices" ("Address", "PaymentMethodId", "InvoiceDataId") VALUES ({address}, {paymentMethodId}, {invoiceId}) ON CONFLICT ("Address", "PaymentMethodId") DO NOTHING""");
         }
 
         /// <summary>
@@ -151,7 +162,11 @@ namespace BTCPayServer.Services.Invoices
                     var paymentData = jobj.ToObject<PaymentData>();
                     invoiceData.Payments.Add(paymentData);
                 }
-                invoices.Add(ToEntity(invoiceData));
+                var entity = ToEntity(invoiceData);
+                // Disable accounting, as we don't have all the payments...
+                // only those related to this paymentMethodId
+                entity.DisableAccounting = true;
+                invoices.Add(entity);
             }
             return invoices.ToArray();
         }
@@ -165,6 +180,27 @@ namespace BTCPayServer.Services.Invoices
                 .Select(s => s.Delivery)
                 .OrderByDescending(s => s.Timestamp)
                 .ToListAsync();
+        }
+
+        public async Task<Dictionary<string, RateBook>> GetRatesOfInvoices(HashSet<string> invoiceIds)
+        {
+            if (invoiceIds.Count == 0)
+                return new();
+            var res = new Dictionary<string, RateBook>();
+            using var ctx = _applicationDbContextFactory.CreateContext();
+            var conn = ctx.Database.GetDbConnection();
+            var result = await conn.QueryAsync<(string Id, string Rate, string Currency)>(
+                """
+                SELECT "Id", "Blob2"->'rates' AS "Rate", "Currency" FROM unnest(@invoices) AS searched_invoices("Id")
+                JOIN "Invoices" USING ("Id")
+                WHERE "Blob2"->'rates' IS NOT NULL;
+                """, new { invoices = invoiceIds.ToArray() });
+            foreach (var inv in result)
+            {
+                var rates = RateBook.Parse(inv.Rate, inv.Currency);
+                res.Add(inv.Id, rates);
+            }
+            return res;
         }
 
         public async Task<AppData[]> GetAppsTaggingStore(string storeId)
@@ -306,7 +342,9 @@ retry:
                 }
             }
         }
-        public async Task UpdatePrompt(string invoiceId, PaymentPrompt prompt)
+        public Task UpdatePrompt(string invoiceId, PaymentPrompt prompt)
+        => UpdatePrompt(invoiceId, prompt, null);
+        public async Task UpdatePrompt(string invoiceId, PaymentPrompt prompt, IEnumerable<string> trackedDestinations)
         {
 retry:
             using (var context = _applicationDbContextFactory.CreateContext())
@@ -322,7 +360,20 @@ retry:
                         return;
                     invoiceEntity.SetPaymentPrompt(prompt.PaymentMethodId, prompt);
                     invoice.SetBlob(invoiceEntity);
+                    // Persist the blob update first, on its own SaveChanges.
+                    // A DbUpdateConcurrencyException here must propagate so the
+                    // outer catch can retry; a unique-key violation on
+                    // AddressInvoices must not be able to roll this back.
                     await context.SaveChangesAsync();
+
+                    if (trackedDestinations is not null)
+                    {
+                        var pmi = prompt.PaymentMethodId.ToString();
+                        foreach (var tracked in trackedDestinations)
+                        {
+                            await UpsertAddressInvoice(context, invoiceId, pmi, tracked);
+                        }
+                    }
                 }
                 catch (DbUpdateConcurrencyException)
                 {
@@ -340,18 +391,13 @@ retry:
                 if (invoice == null)
                     return;
                 var invoiceEntity = invoice.GetBlob();
-                var newDetails = prompt.Details;
                 var existing = invoiceEntity.GetPaymentPrompt(prompt.PaymentMethodId);
                 if (existing.Destination != prompt.Destination && prompt.Activated && prompt.Destination is not null)
                 {
+                    var pmi = paymentPromptContext.PaymentMethodId.ToString();
                     foreach (var tracked in paymentPromptContext.TrackedDestinations)
                     {
-                        await context.AddressInvoices.AddAsync(new AddressInvoiceData()
-                        {
-                            InvoiceDataId = invoiceId,
-                            Address = tracked,
-                            PaymentMethodId = paymentPromptContext.PaymentMethodId.ToString()
-                        });
+                        await UpsertAddressInvoice(context, invoiceId, pmi, tracked);
                     }
                     AddToTextSearch(context, invoice, prompt.Destination);
                 }
@@ -907,7 +953,7 @@ retry:
                     CurrencyValue = p.Select(v => v.CurrencyValue).Sum()
                 });
             return new InvoiceStatistics(contributions)
-            { 
+            {
                 TotalSettled = totalSettledCurrency,
                 TotalProcessing = totalProcessingCurrency,
                 Total = totalSettledCurrency + totalProcessingCurrency
@@ -993,6 +1039,20 @@ retry:
         public bool IncludeArchived { get; set; } = true;
         public bool IncludeRefunds { get; set; }
         public bool OrderByDesc { get; set; } = true;
+
+        public void FillFromSearchText(SearchString fs, int timezoneOffset)
+        {
+            TextSearch = fs.TextSearch;
+            Unusual = fs.GetFilterBool("unusual");
+            IncludeArchived = fs.GetFilterBool("includearchived") ?? false;
+            Status = fs.GetFilterArray("status");
+            ExceptionStatus = fs.GetFilterArray("exceptionstatus");
+            StoreId = fs.GetFilterArray("storeid");
+            ItemCode = fs.GetFilterArray("itemcode");
+            OrderId = fs.GetFilterArray("orderid");
+            StartDate = fs.GetFilterDate("startdate", timezoneOffset);
+            EndDate = fs.GetFilterDate("enddate", timezoneOffset);
+        }
     }
 
     public class InvoiceStatistics : Dictionary<string, InvoiceStatistics.Contribution>

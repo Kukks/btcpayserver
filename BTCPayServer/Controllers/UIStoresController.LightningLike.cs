@@ -28,7 +28,7 @@ public partial class UIStoresController
     [Authorize(Policy = Policies.CanModifyStoreSettings, AuthenticationSchemes = AuthenticationSchemes.Cookie)]
     public IActionResult Lightning(string storeId, string cryptoCode)
     {
-        var store = HttpContext.GetStoreData();
+        var store = HttpContext.GetStoreDataOrNull();
         if (store == null)
             return NotFound();
 
@@ -90,7 +90,7 @@ public partial class UIStoresController
     [HttpGet("{storeId}/lightning/{cryptoCode}/dashboard/balance")]
     public IActionResult LightningBalanceDashboard(string storeId, string cryptoCode)
     {
-        var store = HttpContext.GetStoreData();
+        var store = HttpContext.GetStoreDataOrNull();
         if (store == null)
             return NotFound();
 
@@ -101,7 +101,7 @@ public partial class UIStoresController
     [Authorize(Policy = Policies.CanModifyStoreSettings, AuthenticationSchemes = AuthenticationSchemes.Cookie)]
     public async Task<IActionResult> LightningBalanceDashboard(string storeId, string cryptoCode, HistogramType type)
     {
-        var store = HttpContext.GetStoreData();
+        var store = HttpContext.GetStoreDataOrNull();
         if (store == null)
             return NotFound();
         var lightningClient = await GetLightningClient(store, cryptoCode);
@@ -116,7 +116,7 @@ public partial class UIStoresController
     [Authorize(Policy = Policies.CanModifyStoreSettings, AuthenticationSchemes = AuthenticationSchemes.Cookie)]
     public IActionResult SetupLightningNode(string storeId, string cryptoCode)
     {
-        var store = HttpContext.GetStoreData();
+        var store = HttpContext.GetStoreDataOrNull();
         if (store == null)
             return NotFound();
 
@@ -134,7 +134,7 @@ public partial class UIStoresController
     public async Task<IActionResult> SetupLightningNode(string storeId, LightningNodeViewModel vm, string command, string cryptoCode)
     {
         vm.CryptoCode = cryptoCode;
-        var store = HttpContext.GetStoreData();
+        var store = HttpContext.GetStoreDataOrNull();
         if (store == null)
             return NotFound();
 
@@ -149,7 +149,7 @@ public partial class UIStoresController
             return View(vm);
         }
 
-            
+
         var paymentMethodId = PaymentTypes.LN.GetPaymentMethodId(network.CryptoCode);
 
         LightningPaymentMethodConfig? paymentMethod;
@@ -185,7 +185,8 @@ public partial class UIStoresController
                 store.SetPaymentMethodConfig(_handlers[lnurl], new LNURLPaymentMethodConfig
                 {
                     UseBech32Scheme = true,
-                    LUD12Enabled = false
+                    LUD12Enabled = false,
+                    LUD21Enabled = true
                 });
 
                 await _storeRepo.UpdateStore(store);
@@ -223,7 +224,7 @@ public partial class UIStoresController
     [Authorize(Policy = Policies.CanModifyStoreSettings, AuthenticationSchemes = AuthenticationSchemes.Cookie)]
     public IActionResult LightningSettings(string storeId, string cryptoCode)
     {
-        var store = HttpContext.GetStoreData();
+        var store = HttpContext.GetStoreDataOrNull();
         if (store == null)
             return NotFound();
 
@@ -257,6 +258,7 @@ public partial class UIStoresController
             vm.LNURLEnabled = !store.GetStoreBlob().GetExcludedPaymentMethods().Match(lnurlId);
             vm.LNURLBech32Mode = lnurl.UseBech32Scheme;
             vm.LUD12Enabled = lnurl.LUD12Enabled;
+            vm.LUD21Enabled = lnurl.LUD21Enabled;
         }
 
         return View(vm);
@@ -266,7 +268,7 @@ public partial class UIStoresController
     [Authorize(Policy = Policies.CanModifyStoreSettings, AuthenticationSchemes = AuthenticationSchemes.Cookie)]
     public async Task<IActionResult> LightningSettings(LightningSettingsViewModel vm)
     {
-        var store = HttpContext.GetStoreData();
+        var store = HttpContext.GetStoreDataOrNull();
         if (store == null)
             return NotFound();
 
@@ -279,28 +281,29 @@ public partial class UIStoresController
         var network = _explorerProvider.GetNetwork(vm.CryptoCode);
         var lnId = PaymentTypes.LN.GetPaymentMethodId(network.CryptoCode);
         var lnurlId = PaymentTypes.LNURL.GetPaymentMethodId(network.CryptoCode);
-        
+
         var lightning = GetConfig<LightningPaymentMethodConfig>(lnId, store);
         if (lightning == null)
             return NotFound();
-        
+
         var needUpdate = false;
         var blob = store.GetStoreBlob();
         blob.LightningDescriptionTemplate = vm.LightningDescriptionTemplate ?? string.Empty;
         blob.LightningAmountInSatoshi = vm.LightningAmountInSatoshi;
         blob.LightningPrivateRouteHints = vm.LightningPrivateRouteHints;
         blob.OnChainWithLnInvoiceFallback = vm.OnChainWithLnInvoiceFallback;
-        
+
         // Lightning
         blob.SetExcluded(lnId, !vm.Enabled);
-        
+
         // LNURL
         blob.SetExcluded(lnurlId, !vm.LNURLEnabled || !vm.Enabled);
 
         var lnurl = GetConfig<LNURLPaymentMethodConfig>(lnurlId, store);
         if (lnurl is null || (
                 lnurl.UseBech32Scheme != vm.LNURLBech32Mode ||
-                lnurl.LUD12Enabled != vm.LUD12Enabled))
+                lnurl.LUD12Enabled != vm.LUD12Enabled ||
+                lnurl.LUD21Enabled != vm.LUD21Enabled))
         {
             needUpdate = true;
         }
@@ -308,7 +311,8 @@ public partial class UIStoresController
         store.SetPaymentMethodConfig(_handlers[lnurlId], new LNURLPaymentMethodConfig
         {
             UseBech32Scheme = vm.LNURLBech32Mode,
-            LUD12Enabled = vm.LUD12Enabled
+            LUD12Enabled = vm.LUD12Enabled,
+            LUD21Enabled = vm.LUD21Enabled
         });
 
         if (store.SetStoreBlob(blob))

@@ -8,6 +8,7 @@ namespace BTCPayServer.Data;
 
 public class PendingTransaction: IHasBlob<PendingTransactionBlob>
     {
+        public string Id { get; set; }
         public string TransactionId { get; set; }
         public string CryptoCode { get; set; }
         public string StoreId { get; set; }
@@ -20,8 +21,8 @@ public class PendingTransaction: IHasBlob<PendingTransactionBlob>
         public byte[] Blob { get; set; }
 
         public string Blob2 { get; set; }
-        
-        
+
+
         internal static void OnModelCreating(ModelBuilder builder, DatabaseFacade databaseFacade)
         {
             builder.Entity<PendingTransaction>()
@@ -30,11 +31,13 @@ public class PendingTransaction: IHasBlob<PendingTransactionBlob>
                 .HasForeignKey(i => i.StoreId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            builder.Entity<PendingTransaction>().HasKey(transaction => new {transaction.CryptoCode, transaction.TransactionId});
+            builder.Entity<PendingTransaction>().HasKey(t => t.Id);
+            builder.Entity<PendingTransaction>().HasIndex(t => new { t.StoreId });
+            builder.Entity<PendingTransaction>().HasIndex(t => new { t.TransactionId });
 
             builder.Entity<PendingTransaction>()
                 .Property(o => o.Blob2)
-                .HasColumnType("JSONB"); 
+                .HasColumnType("JSONB");
             builder.Entity<PendingTransaction>()
                 .Property(o => o.OutpointsUsed)
                 .HasColumnType("text[]");
@@ -53,7 +56,13 @@ public class PendingTransaction: IHasBlob<PendingTransactionBlob>
     public class PendingTransactionBlob
     {
         public string PSBT { get; set; }
+        public string RequestBaseUrl { get; set; }
         public List<CollectedSignature> CollectedSignatures { get; set; } = new();
+
+        public int? SignaturesCollected { get; set; }
+        // for example: 3/5
+        public int? SignaturesNeeded { get; set; }
+        public int? SignaturesTotal { get; set; }
     }
 
     public class CollectedSignature

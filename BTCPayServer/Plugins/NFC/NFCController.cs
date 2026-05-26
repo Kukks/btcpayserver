@@ -6,7 +6,6 @@ using BTCPayServer.Client.Models;
 using BTCPayServer.Data.Payouts.LightningLike;
 using BTCPayServer.Lightning;
 using BTCPayServer.Payments;
-using BTCPayServer.Payments.Lightning;
 using BTCPayServer.Services;
 using BTCPayServer.Services.Invoices;
 using BTCPayServer.Services.Stores;
@@ -103,7 +102,6 @@ namespace BTCPayServer.Plugins.NFC
             {
                 if (!lnPaymentMethod.Activated)
                 {
-                    var store = await _storeRepository.FindStore(invoice.StoreId);
                     await _invoiceActivator.ActivateInvoicePaymentMethod(invoice.Id, lnPaymentMethod.PaymentMethodId);
                 }
                 LightMoney due;
@@ -165,13 +163,13 @@ namespace BTCPayServer.Plugins.NFC
                     else
                     {
                         var res = JObject.Parse(response).ToObject<LNUrlStatusResponse>();
-                        return BadRequest($"Could not fetch BOLT11 invoice to pay to: {res.Reason}");                
+                        return BadRequest($"Could not fetch BOLT11 invoice to pay to: {res.Reason}");
 
                     }
                 }
                 catch (Exception ex)
                 {
-                    return BadRequest($"Could not fetch BOLT11 invoice to pay to: {ex.Message}");    
+                    return BadRequest($"Could not fetch BOLT11 invoice to pay to: {ex.Message}");
                 }
             }
 
@@ -192,7 +190,7 @@ namespace BTCPayServer.Plugins.NFC
             }
             catch (Exception ex)
             {
-                return BadRequest(ex.Message);    
+                return BadRequest(ex.Message);
             }
         }
 

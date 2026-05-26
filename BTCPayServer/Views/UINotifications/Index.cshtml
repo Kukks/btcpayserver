@@ -27,12 +27,12 @@
             #SearchText {
                 width: 100%;
             }
-        } 
+        }
     </style>
 }
 
 <div class="sticky-header">
-	<h2 class="my-1" text-translate="true">@ViewData["Title"]</h2>
+	<h2 class="my-1">@ViewData["Title"]</h2>
     <a id="NotificationSettings" asp-controller="UIManage" asp-action="NotificationSettings" class="btn btn-secondary d-flex align-items-center">
         <vc:icon symbol="nav-store-settings" />
     </a>
@@ -124,7 +124,7 @@
                             </th>
                             <th text-translate="true">Message</th>
                             <th class="date-col">
-                                <div class="d-flex align-items-center gap-1">
+                                <div class="d-flex align-items-center gap-3">
                                     <span text-translate="true">Date</span>
                                     <button type="button" class="btn btn-link p-0 switch-time-format only-for-js" title="@StringLocalizer["Switch date format"]">
                                         <vc:icon symbol="time" />

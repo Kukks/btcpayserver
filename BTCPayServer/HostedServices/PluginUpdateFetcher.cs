@@ -1,8 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Net.Http;
-using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using BTCPayServer.Abstractions.Contracts;
@@ -11,11 +9,8 @@ using BTCPayServer.Controllers;
 using BTCPayServer.Plugins;
 using BTCPayServer.Services;
 using BTCPayServer.Services.Notifications;
-using BTCPayServer.Services.Notifications.Blobs;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Localization;
-using Microsoft.Extensions.Logging;
-using Newtonsoft.Json.Linq;
 
 namespace BTCPayServer.HostedServices
 {
@@ -83,9 +78,8 @@ namespace BTCPayServer.HostedServices
             dh.LastVersions ??= new Dictionary<string, Version>();
             var disabledPlugins = pluginService.GetDisabledPlugins();
 
-            var installedPlugins =
-                pluginService.LoadedPlugins.ToDictionary(plugin => plugin.Identifier, plugin => plugin.Version);
-            var remotePlugins = await pluginService.GetRemotePlugins(null);
+            var installedPlugins = pluginService.Installed;
+            var remotePlugins = await pluginService.GetRemotePlugins(null, cancellationToken);
             //take the latest version of each plugin
             var remotePluginsList = remotePlugins
                 .GroupBy(plugin => plugin.Identifier)

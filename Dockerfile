@@ -1,4 +1,4 @@
-FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:8.0.404-bookworm-slim AS builder
+FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:10.0.202-noble AS builder
 ENV DOTNET_CLI_TELEMETRY_OPTOUT=1
 WORKDIR /source
 COPY nuget.config nuget.config
@@ -21,10 +21,10 @@ ARG CONFIGURATION_NAME=Release
 ARG GIT_COMMIT
 RUN cd BTCPayServer && dotnet publish -p:GitCommit=${GIT_COMMIT} --output /app/ --configuration ${CONFIGURATION_NAME}
 
-FROM mcr.microsoft.com/dotnet/aspnet:8.0.11-bookworm-slim
+FROM mcr.microsoft.com/dotnet/aspnet:10.0.6-noble
 
-RUN apt-get update && apt-get install -y --no-install-recommends iproute2 openssh-client \
-    && rm -rf /var/lib/apt/lists/* 
+RUN apt-get update && apt-get install -y --no-install-recommends iproute2 openssh-client ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 
 ENV LC_ALL en_US.UTF-8
 ENV LANG en_US.UTF-8

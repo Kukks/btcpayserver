@@ -26,16 +26,13 @@ namespace BTCPayServer.Plugins.Altcoins
             {
                 if (selectedChains.Contains("LBTC"))
                 {
-                    // Activating LBTC automatically activate the other liquid assets
+                    // Activating LBTC automatically activates Liquid assets
                     InitUSDT(services, selectedChains, liquidNBX);
-                    InitLCAD(services, selectedChains, liquidNBX);
                 }
                 else
                 {
                     if (selectedChains.Contains("USDT"))
                         InitUSDT(services, selectedChains, liquidNBX);
-                    if (selectedChains.Contains("LCAD"))
-                        InitLCAD(services, selectedChains, liquidNBX);
                 }
                 if (selectedChains.Contains("LBTC"))
                     InitLiquid(services, liquidNBX);
@@ -52,10 +49,6 @@ namespace BTCPayServer.Plugins.Altcoins
                 InitDash(services);
             if (selectedChains.Contains("GRS"))
                 InitGroestlcoin(services);
-            if (selectedChains.Contains("XMR"))
-                InitMonero(services);
-            if (selectedChains.Contains("ZEC"))
-                InitZcash(services);
         }
     }
 }

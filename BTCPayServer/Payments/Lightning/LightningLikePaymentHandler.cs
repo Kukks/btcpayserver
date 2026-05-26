@@ -26,6 +26,7 @@ namespace BTCPayServer.Payments.Lightning
     {
         new LightningPaymentData ParsePaymentDetails(JToken details);
     }
+
     public class LightningLikePaymentHandler : IPaymentMethodHandler, ILightningPaymentHandler
     {
         public JsonSerializer Serializer { get; }
@@ -73,13 +74,9 @@ namespace BTCPayServer.Payments.Lightning
 
         public BTCPayNetwork Network => _Network;
         static LightMoney OneSat = LightMoney.FromUnit(1.0m, LightMoneyUnit.Satoshi);
+
         public async Task ConfigurePrompt(PaymentMethodContext context)
         {
-            if (context.InvoiceEntity.Type == InvoiceType.TopUp)
-            {
-                throw new PaymentMethodUnavailableException("Lightning Network payment method is not available for top-up invoices");
-            }
-
             var paymentPrompt = context.Prompt;
 
             var preferOnion = Uri.TryCreate(context.InvoiceEntity.ServerUrl, UriKind.Absolute, out var u) && u.IsOnion();
@@ -94,6 +91,7 @@ namespace BTCPayServer.Payments.Lightning
             decimal due = paymentPrompt.Calculate().Due;
             var client = config.CreateLightningClient(_Network, Options.Value, _lightningClientFactory);
             var expiry = invoice.ExpirationTime - DateTimeOffset.UtcNow;
+            var isTopUpInvoice = invoice.Type == InvoiceType.TopUp;
             if (expiry < TimeSpan.Zero)
                 expiry = TimeSpan.FromSeconds(1);
 
@@ -101,20 +99,28 @@ namespace BTCPayServer.Payments.Lightning
 
             string description = storeBlob.LightningDescriptionTemplate;
             description = description.Replace("{StoreName}", store.StoreName ?? "", StringComparison.OrdinalIgnoreCase)
-                                     .Replace("{ItemDescription}", invoice.Metadata.ItemDesc ?? "", StringComparison.OrdinalIgnoreCase)
-                                     .Replace("{OrderId}", invoice.Metadata.OrderId ?? "", StringComparison.OrdinalIgnoreCase);
+                .Replace("{ItemDescription}", invoice.Metadata.ItemDesc ?? "", StringComparison.OrdinalIgnoreCase)
+                .Replace("{OrderId}", invoice.Metadata.OrderId ?? "", StringComparison.OrdinalIgnoreCase);
             using (var cts = new CancellationTokenSource(LightningTimeout))
             {
                 try
                 {
-                    var request = new CreateInvoiceParams(new LightMoney(due, LightMoneyUnit.BTC), description, expiry);
+                    // For top-up invoices, pass LightMoney.Zero to request an amountless bolt11.
+                    // The backend decides whether it supports this
+                    var invoiceAmount = isTopUpInvoice ? LightMoney.Zero : new LightMoney(due, LightMoneyUnit.BTC);
+                    var request = new CreateInvoiceParams(invoiceAmount, description, expiry);
                     request.PrivateRouteHints = storeBlob.LightningPrivateRouteHints;
                     lightningInvoice = await client.CreateInvoice(request, cts.Token);
-                    var diff = request.Amount - lightningInvoice.Amount;
-                    if (diff != LightMoney.Zero)
+
+                    // Since No Invoice Amount so Skip the Tweak Fee check
+                    if (!isTopUpInvoice)
                     {
-                        // Some providers doesn't round up to msat. So we tweak the fees so the due match the BOLT11's amount.
-                        paymentPrompt.AddTweakFee(-diff.ToUnit(LightMoneyUnit.BTC));
+                        var diff = request.Amount - lightningInvoice.Amount;
+                        if (diff != LightMoney.Zero)
+                        {
+                            // Some providers doesn't round up to msat. So we tweak the fees so the due match the BOLT11's amount.
+                            paymentPrompt.AddTweakFee(-diff.ToUnit(LightMoneyUnit.BTC));
+                        }
                     }
                 }
                 catch (OperationCanceledException) when (cts.IsCancellationRequested)
@@ -130,20 +136,23 @@ namespace BTCPayServer.Payments.Lightning
             paymentPrompt.Destination = lightningInvoice.BOLT11;
             var details = new LigthningPaymentPromptDetails
             {
-                PaymentHash = BOLT11PaymentRequest.Parse(lightningInvoice.BOLT11, _Network.NBitcoinNetwork).PaymentHash,
+                PaymentHash = lightningInvoice.GetPaymentHash(_Network.NBitcoinNetwork),
                 Preimage = string.IsNullOrEmpty(lightningInvoice.Preimage) ? null : uint256.Parse(lightningInvoice.Preimage),
                 InvoiceId = lightningInvoice.Id,
                 NodeInfo = (await nodeInfo).FirstOrDefault()?.ToString()
             };
+            if (details.PaymentHash is {} h)
+                context.TrackedDestinations.Add(h.ToString());
             paymentPrompt.Details = JObject.FromObject(details, Serializer);
         }
 
 
-        public async Task<NodeInfo[]> GetNodeInfo(LightningPaymentMethodConfig supportedPaymentMethod, PrefixedInvoiceLogs? invoiceLogs, bool? preferOnion = null, bool throws = false)
+        public async Task<NodeInfo[]> GetNodeInfo(LightningPaymentMethodConfig supportedPaymentMethod, PrefixedInvoiceLogs? invoiceLogs,
+            bool? preferOnion = null, bool throws = false)
         {
             var synced = _Dashboard.IsFullySynched(_Network.CryptoCode, out var summary);
             if (supportedPaymentMethod.IsInternalNode && !synced)
-                throw new PaymentMethodUnavailableException("Full node not available");
+                invoiceLogs?.Write("The full node isn’t synced yet. Lightning payments may not function correctly.", InvoiceEventData.EventSeverity.Warning);
 
             try
             {
@@ -184,7 +193,7 @@ namespace BTCPayServer.Payments.Lightning
                     ? info.NodeInfoList.Where(i => i.IsTor == preferOnion.Value).ToArray()
                     : info.NodeInfoList.Select(i => i).ToArray();
 
-                if (summary.Status is not null)
+                if (summary?.Status is not null)
                 {
                     var blocksGap = summary.Status.ChainHeight - info.BlockHeight;
                     if (blocksGap > 10 && !(isLndHub && info.BlockHeight == 0))
@@ -193,6 +202,7 @@ namespace BTCPayServer.Payments.Lightning
                             $"The lightning node is not synched ({blocksGap} blocks left)");
                     }
                 }
+
                 return nodeInfo;
             }
             catch (Exception e) when (!throws)
@@ -222,30 +232,37 @@ namespace BTCPayServer.Payments.Lightning
                 throw new PaymentMethodUnavailableException($"Error while connecting to the lightning node via {nodeInfo.Host}:{nodeInfo.Port} ({ex.Message})");
             }
         }
+
         public LightningPaymentMethodConfig ParsePaymentMethodConfig(JToken config)
         {
             return config.ToObject<LightningPaymentMethodConfig>(Serializer) ?? throw new FormatException($"Invalid {nameof(LightningPaymentMethodConfig)}");
         }
+
         object IPaymentMethodHandler.ParsePaymentMethodConfig(JToken config)
         {
             return ParsePaymentMethodConfig(config);
         }
+
         object IPaymentMethodHandler.ParsePaymentPromptDetails(JToken details)
         {
             return ParsePaymentPromptDetails(details);
         }
+
         public LigthningPaymentPromptDetails ParsePaymentPromptDetails(JToken details)
         {
             return details.ToObject<LigthningPaymentPromptDetails>(Serializer) ?? throw new FormatException($"Invalid {nameof(LigthningPaymentPromptDetails)}");
         }
+
         public LightningPaymentData ParsePaymentDetails(JToken details)
         {
             return details.ToObject<LightningPaymentData>(Serializer) ?? throw new FormatException($"Invalid {nameof(LightningPaymentData)}");
         }
+
         object IPaymentMethodHandler.ParsePaymentDetails(JToken details)
         {
             return ParsePaymentDetails(details);
         }
+
         public async Task ValidatePaymentMethodConfig(PaymentMethodConfigValidationContext validationContext)
         {
             if (validationContext.Config is JValue { Type: JTokenType.String })
@@ -273,13 +290,15 @@ namespace BTCPayServer.Payments.Lightning
                             return;
                         }
                     }
+
                     if (!client.IsSafe(config.ConnectionString))
                     {
                         var canManage = (await validationContext.AuthorizationService.AuthorizeAsync(validationContext.User, null,
-                    new PolicyRequirement(Policies.CanModifyServerSettings))).Succeeded;
+                            new PolicyRequirement(Policies.CanModifyServerSettings))).Succeeded;
                         if (!canManage)
                         {
-                            validationContext.ModelState.AddModelError(nameof(config.ConnectionString), $"You do not have 'btcpay.server.canmodifyserversettings' rights, so the connection string should not contain 'cookiefilepath', 'macaroondirectorypath', 'macaroonfilepath', and should not point to a local ip or to a dns name ending with '.internal', '.local', '.lan' or '.'.");
+                            validationContext.ModelState.AddModelError(nameof(config.ConnectionString),
+                                $"You do not have 'btcpay.server.canmodifyserversettings' rights, so the connection string should not contain 'cookiefilepath', 'macaroondirectorypath', 'macaroonfilepath', and should not point to a local ip or to a dns name ending with '.internal', '.local', '.lan' or '.'.");
                             return;
                         }
                     }
@@ -299,11 +318,13 @@ namespace BTCPayServer.Payments.Lightning
             if (oldConfig?.IsInternalNode != config.IsInternalNode && config.IsInternalNode)
             {
                 var canUseInternalNode = _policies.Settings.AllowLightningInternalNodeForAll ||
-                   (await validationContext.AuthorizationService.AuthorizeAsync(validationContext.User, null,
-                       new PolicyRequirement(Policies.CanUseInternalLightningNode))).Succeeded && _lightningNetworkOptions.Value.InternalLightningByCryptoCode.ContainsKey(_Network.CryptoCode);
+                                         (await validationContext.AuthorizationService.AuthorizeAsync(validationContext.User, null,
+                                             new PolicyRequirement(Policies.CanUseInternalLightningNode))).Succeeded &&
+                                         _lightningNetworkOptions.Value.InternalLightningByCryptoCode.ContainsKey(_Network.CryptoCode);
                 if (!canUseInternalNode)
                 {
-                    validationContext.SetMissingPermission(Policies.CanUseInternalLightningNode, $"You are not authorized to use the internal lightning node. Either add '{Policies.CanUseInternalLightningNode}' to an API Key, or allow non-admin users to use the internal lightning node in the server settings.");
+                    validationContext.SetMissingPermission(Policies.CanUseInternalLightningNode,
+                        $"You are not authorized to use the internal lightning node. Either add '{Policies.CanUseInternalLightningNode}' to an API Key, or allow non-admin users to use the internal lightning node in the server settings.");
                     return;
                 }
             }
@@ -313,6 +334,7 @@ namespace BTCPayServer.Payments.Lightning
                 validationContext.ModelState.AddModelError(nameof(config.ConnectionString), "The connection string or setting the internal node is required");
                 return;
             }
+
             validationContext.Config = JToken.FromObject(config, Serializer);
 #pragma warning restore CS0618 // Type or member is obsolete
         }

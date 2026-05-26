@@ -18,6 +18,9 @@ services:
       TESTS_LTCNBXPLORERURL: http://nbxplorer:32838/
       TESTS_POSTGRES: User ID=postgres;Include Error Detail=true;Host=postgres;Port=5432;Database=btcpayserver
       TESTS_EXPLORER_POSTGRES: User ID=postgres;Include Error Detail=true;Host=postgres;Port=5432;Database=nbxplorer
+      TESTS_MAILPIT_HOST: mailpit
+      TESTS_MAILPIT_SMTP: 1025
+      TESTS_MAILPIT_HTTP: 8025
       TESTS_HOSTNAME: tests
       TESTS_RUN_EXTERNAL_INTEGRATION: ${TESTS_RUN_EXTERNAL_INTEGRATION:-"false"}
       TESTS_AzureBlobStorageConnectionString: ${TESTS_AzureBlobStorageConnectionString:-none}
@@ -29,11 +32,11 @@ services:
       TESTS_SSHPASSWORD: ""
       TESTS_SSHKEYFILE: ""
       TESTS_SOCKSENDPOINT: "tor:9050"
+      TESTS_ARTIFACTS_DIR: "/tmp/Artifacts"
     expose:
       - "80"
     depends_on:
       - dev
-      - selenium
     extra_hosts:
       - "tests:127.0.0.1"
     networks:
@@ -44,6 +47,7 @@ services:
       - "sshd_datadir:/root/.ssh"
       - "customer_lightningd_datadir:/etc/customer_lightningd_datadir"
       - "merchant_lightningd_datadir:/etc/merchant_lightningd_datadir"
+      - "tests_datadir:/tmp/Artifacts"
 
   # The dev container is not actually used, it is just handy to run `docker-compose up dev` to start all services
   dev:
@@ -58,7 +62,7 @@ services:
       - merchant_lnd
       - sshd
       - tor
-      - monero_wallet
+      - mailpit
 
   sshd:
     build:
@@ -72,7 +76,7 @@ services:
         - "sshd_datadir:/root/.ssh"
 
   devlnd:
-    image: btcpayserver/bitcoin:28.1
+    image: btcpayserver/bitcoin:31.0
     environment:
       BITCOIN_NETWORK: regtest
       BITCOIN_WALLETDIR: "/data/wallets"
@@ -81,24 +85,26 @@ services:
         connect=bitcoind:39388
         fallbackfee=0.0002
         rpcallowip=0.0.0.0/0
+        unsafesqlitesync=1
     depends_on:
       - nbxplorer
       - postgres
       - customer_lnd
       - merchant_lnd
 
-  selenium:
-    image: selenium/standalone-chrome:125.0
-    extra_hosts:
-      - "tests:172.23.0.18"
-    expose:
-      - "4444"
-    networks:
-      default:
-      custom:
+  mailpit:
+    image: axllent/mailpit:v1.27
+    ports:
+      # Web UI
+      - "34218:8025"
+      # SMTP
+      - "34219:1025"
+    environment:
+      MP_SMTP_AUTH_ACCEPT_ANY: 1
+      MP_SMTP_AUTH_ALLOW_INSECURE: 1
 
   nbxplorer:
-    image: nicolasdorier/nbxplorer:2.5.16
+    image: nicolasdorier/nbxplorer:2.6.5
     restart: unless-stopped
     ports:
       - "32838:32838"
@@ -134,7 +140,7 @@ services:
 
   bitcoind:
     restart: unless-stopped
-    image: btcpayserver/bitcoin:28.1
+    image: btcpayserver/bitcoin:31.0
     environment:
       BITCOIN_NETWORK: regtest
       BITCOIN_WALLETDIR: "/data/wallets"
@@ -150,6 +156,8 @@ services:
         zmqpubrawtx=tcp://0.0.0.0:28333
         deprecatedrpc=signrawtransaction
         fallbackfee=0.0002
+        minrelaytxfee=0.00001000
+        unsafesqlitesync=1
     ports:
       - "43782:43782"
       - "39388:39388"
@@ -162,7 +170,7 @@ services:
       - "bitcoin_datadir:/data"
 
   customer_lightningd:
-    image: btcpayserver/lightning:v24.08.2
+    image: btcpayserver/lightning:v25.05
     stop_signal: SIGKILL
     restart: unless-stopped
     environment:
@@ -191,7 +199,7 @@ services:
       - bitcoind
 
   merchant_lightningd:
-    image: btcpayserver/lightning:v24.08.2
+    image: btcpayserver/lightning:v25.05
     stop_signal: SIGKILL
     restart: unless-stopped
     environment:
@@ -220,16 +228,19 @@ services:
       - bitcoind
 
   postgres:
-    image:  postgres:13.13
+    image: postgres:18.1
     environment:
-        POSTGRES_HOST_AUTH_METHOD: trust
+      POSTGRES_HOST_AUTH_METHOD: trust
     ports:
       - "39372:5432"
+    command: ["-c", "fsync=off", "-c", "synchronous_commit=off", "-c", "full_page_writes=off"]
     expose:
       - "5432"
+    volumes:
+      - "postgres_test_datadir:/var/lib/postgresql"
 
   merchant_lnd:
-    image: btcpayserver/lnd:v0.18.4-beta
+    image: btcpayserver/lnd:v0.19.3-beta-1
     restart: unless-stopped
     environment:
       LND_CHAIN: "btc"
@@ -267,7 +278,7 @@ services:
       - bitcoind
 
   customer_lnd:
-    image: btcpayserver/lnd:v0.18.4-beta
+    image: btcpayserver/lnd:v0.19.3-beta-1
     restart: unless-stopped
     environment:
       LND_CHAIN: "btc"
@@ -316,28 +327,6 @@ services:
         - "tor_datadir:/home/tor/.tor"
         - "torrcdir:/usr/local/etc/tor"
         - "tor_servicesdir:/var/lib/tor/hidden_services"
-
-  monerod:
-      image: btcpayserver/monero:0.18.3.3
-      restart: unless-stopped
-      container_name: xmr_monerod
-      entrypoint: monerod --fixed-difficulty 200 --rpc-bind-ip=0.0.0.0 --confirm-external-bind --rpc-bind-port=18081 --block-notify="/bin/sh ./scripts/notifier.sh -k -X GET https://host.docker.internal:14142/monerolikedaemoncallback/block?cryptoCode=xmr&hash=%s" --testnet --no-igd --hide-my-port --offline --non-interactive
-      volumes:
-          - "monero_data:/home/monero/.bitmonero"
-      ports:
-          - "18081:18081"
-
-  monero_wallet:
-      image: btcpayserver/monero:0.18.3.3
-      restart: unless-stopped
-      container_name: xmr_wallet_rpc
-      entrypoint: monero-wallet-rpc --testnet --rpc-bind-ip=0.0.0.0 --disable-rpc-login --confirm-external-bind --rpc-bind-port=18082 --non-interactive --trusted-daemon  --daemon-address=monerod:18081 --wallet-dir=/wallet --tx-notify="/bin/sh ./scripts/notifier.sh -k -X GET https://host.docker.internal:14142/monerolikedaemoncallback/tx?cryptoCode=xmr&hash=%s"
-      ports:
-          - "18082:18082"
-      volumes:
-          - "./monero_wallet:/wallet"
-      depends_on:
-          - monerod
 
   litecoind:
     restart: unless-stopped
@@ -389,6 +378,7 @@ services:
           - "elementsd_liquid_datadir:/data"
 
 volumes:
+    tests_datadir:
     sshd_datadir:
     bitcoin_datadir:
     elementsd_liquid_datadir:
@@ -397,10 +387,10 @@ volumes:
     lightning_charge_datadir:
     customer_lnd_datadir:
     merchant_lnd_datadir:
+    postgres_test_datadir:
     tor_datadir:
     torrcdir:
     tor_servicesdir:
-    monero_data:
 
 networks:
   default:

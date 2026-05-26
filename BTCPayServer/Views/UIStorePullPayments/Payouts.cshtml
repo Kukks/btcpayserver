@@ -2,12 +2,12 @@
 @using BTCPayServer.Payouts
 @using BTCPayServer.Views.Stores
 @using BTCPayServer.Client
-@model BTCPayServer.Models.WalletViewModels.PayoutsModel
+@model BTCPayServer.Plugins.Wallets.Views.ViewModels.PayoutsModel
 
 @inject PayoutMethodHandlerDictionary PayoutHandlers;
 @{
-    var storeId = Context.GetRouteValue("storeId") as string;
-    ViewData.SetActivePage(StoreNavPages.Payouts, string.IsNullOrEmpty(Model.PullPaymentName) ? StringLocalizer["Payouts"] : StringLocalizer["Payouts for pull payment {0}", Model.PullPaymentName], Context.GetStoreData().Id);
+    var storeId = Context.GetStoreData().Id;
+    ViewData.SetLayoutModel(new(nameof(StoreNavPages.Payouts), string.IsNullOrEmpty(Model.PullPaymentName) ? StringLocalizer["Payouts"] : StringLocalizer["Payouts for pull payment {0}", Model.PullPaymentName]));
     Model.PaginationQuery ??= new Dictionary<string, object>();
     Model.PaginationQuery.Add("pullPaymentId", Model.PullPaymentId);
     Model.PaginationQuery.Add("payoutMethodId", Model.PayoutMethodId);
@@ -102,7 +102,7 @@
             @foreach (var state in Model.PayoutMethods)
             {
                 <li class="nav-item py-0">
-                    <a asp-action="Payouts" asp-route-storeId="@Context.GetRouteValue("storeId")"
+                    <a asp-action="Payouts" asp-route-storeId="@(Model.PullPaymentId is null ? Context.GetRouteValue("storeId") : null)"
                        asp-route-payoutState="@Model.PayoutState"
                        asp-route-payoutMethodId="@state.ToString()"
                        asp-route-pullPaymentId="@Model.PullPaymentId"
@@ -125,7 +125,7 @@
             {
                 <a id="@state.Key-view"
                    asp-action="Payouts"
-                   asp-route-storeId="@Context.GetRouteValue("storeId")"
+                   asp-route-storeId="@(Model.PullPaymentId is null ? Context.GetRouteValue("storeId") : null)"
                    asp-route-payoutState="@state.Key"
                    asp-route-pullPaymentId="@Model.PullPaymentId"
                    asp-route-payoutMethodId="@Model.PayoutMethodId"
@@ -147,12 +147,12 @@
                     <tr>
                         @if (stateActions.Any())
                         {
-                            <th class="only-for-js mass-action-select-col" permission="@Policies.CanModifyStoreSettings">
+                            <th class="only-for-js mass-action-select-col" permission="@Policies.CanManagePayouts">
                                 <input type="checkbox" class="form-check-input mass-action-select-all" data-payout-state="@Model.PayoutState.ToString()" />
                             </th>
                         }
                         <th class="date-col">
-                            <div class="d-flex align-items-center gap-1">
+                            <div class="d-flex align-items-center gap-3">
                                 <span text-translate="true">Date</span>
                                 <button type="button" class="btn btn-link p-0 switch-time-format only-for-js" title="Switch date format">
                                     <vc:icon symbol="time" />
@@ -170,7 +170,7 @@
                 </thead>
                 @if (stateActions.Any())
                 {
-                    <thead class="mass-action-actions" permission="@Policies.CanModifyStoreSettings">
+                    <thead class="mass-action-actions" permission="@Policies.CanManagePayouts">
                     <tr>
                         <th class="mass-action-select-col only-for-js">
                             <input type="checkbox" class="form-check-input mass-action-select-all" />
@@ -199,7 +199,7 @@
                         <tr class="payout mass-action-row">
                             @if (stateActions.Any())
                             {
-                                <td class="only-for-js mass-action-select-col align-middle" permission="@Policies.CanModifyStoreSettings">
+                                <td class="only-for-js mass-action-select-col align-middle" permission="@Policies.CanManagePayouts">
                                     <input type="checkbox" class="selection-item-@Model.PayoutState.ToString() form-check-input mass-action-select" asp-for="Payouts[i].Selected" />
                                     <input type="hidden" asp-for="Payouts[i].PayoutId" />
                                 </td>

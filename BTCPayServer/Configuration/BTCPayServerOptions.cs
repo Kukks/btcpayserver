@@ -2,7 +2,6 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Net;
-using BTCPayServer.Configuration;
 using BTCPayServer.Logging;
 using BTCPayServer.SSH;
 using Microsoft.Extensions.Configuration;
@@ -60,7 +59,7 @@ namespace BTCPayServer.Configuration
         {
             NetworkType = DefaultConfiguration.GetNetworkType(conf);
 
-            Logs.Configuration.LogInformation("Network: " + NetworkType.ToString());
+            Logs.Configuration.LogInformation("Network: " + NetworkType);
 
             if (conf.GetOrDefault<string>("POSTGRES", null) == null)
             {

@@ -5,12 +5,14 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using BTCPayServer.Data;
+using BTCPayServer.HostedServices;
 using BTCPayServer.Logging;
 using Dapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using NBitcoin;
+using NBitcoin.RPC;
 using NBXplorer;
 using NBXplorer.DerivationStrategy;
 using NBXplorer.Models;
@@ -28,6 +30,7 @@ namespace BTCPayServer.Services.Wallets
         public Coin Coin { get; set; }
         public long Confirmations { get; set; }
         public BitcoinAddress Address { get; set; }
+        public int KeyIndex { get; set; }
     }
     public class NetworkCoins
     {
@@ -40,9 +43,30 @@ namespace BTCPayServer.Services.Wallets
         public DerivationStrategyBase Strategy { get; set; }
         public BTCPayWallet Wallet { get; set; }
     }
+
+
+#nullable enable
+    public record BumpableInfo(bool RBF, bool CPFP, ReplacementInfo? ReplacementInfo);
+#nullable restore
+    public enum BumpableSupport
+    {
+        NotConfigured,
+        NotCompatible,
+        NotSynched,
+        Ok
+    }
+    public class BumpableTransactions : Dictionary<uint256, BumpableInfo>
+    {
+        public BumpableTransactions()
+        {
+        }
+
+        public BumpableSupport Support { get; internal set; }
+    }
     public class BTCPayWallet
     {
         public WalletRepository WalletRepository { get; }
+        public NBXplorerDashboard Dashboard { get; }
         public NBXplorerConnectionFactory NbxplorerConnectionFactory { get; }
         public Logs Logs { get; }
 
@@ -50,6 +74,7 @@ namespace BTCPayServer.Services.Wallets
         private readonly IMemoryCache _MemoryCache;
         public BTCPayWallet(ExplorerClient client, IMemoryCache memoryCache, BTCPayNetwork network,
             WalletRepository walletRepository,
+            NBXplorerDashboard dashboard,
             ApplicationDbContextFactory dbContextFactory, NBXplorerConnectionFactory nbxplorerConnectionFactory, Logs logs)
         {
             ArgumentNullException.ThrowIfNull(client);
@@ -58,6 +83,7 @@ namespace BTCPayServer.Services.Wallets
             _Client = client;
             _Network = network;
             WalletRepository = walletRepository;
+            Dashboard = dashboard;
             _dbContextFactory = dbContextFactory;
             NbxplorerConnectionFactory = nbxplorerConnectionFactory;
             _MemoryCache = memoryCache;
@@ -89,12 +115,21 @@ namespace BTCPayServer.Services.Wallets
                 await _Client.TrackAsync(derivationStrategy).ConfigureAwait(false);
                 pathInfo = await _Client.GetUnusedAsync(derivationStrategy, DerivationFeature.Deposit, 0, true).ConfigureAwait(false);
             }
-            if (storeId != null)
+
+            if (storeId == null) return pathInfo;
+
+            var metadata = new JObject
             {
-                await WalletRepository.EnsureWalletObject(
-                    new WalletObjectId(new WalletId(storeId, Network.CryptoCode), WalletObjectData.Types.Address, pathInfo.Address.ToString()),
-                    new JObject() { ["generatedBy"] = generatedBy });
+                ["generatedBy"] = generatedBy
+            };
+
+            if (generatedBy == "receive")
+            {
+                metadata["reservedAt"] = DateTimeOffset.UtcNow;
             }
+
+            await WalletRepository.EnsureWalletObject(
+                new WalletObjectId(new WalletId(storeId, Network.CryptoCode), WalletObjectData.Types.Address, pathInfo.Address.ToString()), metadata);
             return pathInfo;
         }
 
@@ -165,8 +200,8 @@ namespace BTCPayServer.Services.Wallets
 
         public void InvalidateCache(DerivationStrategyBase strategy)
         {
-            _MemoryCache.Remove("CACHEDCOINS_" + strategy.ToString());
-            _MemoryCache.Remove("CACHEDBALANCE_" + strategy.ToString());
+            _MemoryCache.Remove("CACHEDCOINS_" + strategy);
+            _MemoryCache.Remove("CACHEDBALANCE_" + strategy);
             _FetchingUTXOs.TryRemove(strategy.ToString(), out var unused);
         }
 
@@ -180,7 +215,7 @@ namespace BTCPayServer.Services.Wallets
                 return await completionSource.Task;
             try
             {
-                var utxos = await _MemoryCache.GetOrCreateAsync("CACHEDCOINS_" + strategy.ToString(), async entry =>
+                var utxos = await _MemoryCache.GetOrCreateAsync("CACHEDCOINS_" + strategy, async entry =>
                 {
                     var now = DateTimeOffset.UtcNow;
                     UTXOChanges result = null;
@@ -214,6 +249,7 @@ namespace BTCPayServer.Services.Wallets
             }
             return await completionSource.Task;
         }
+        public bool ForceInefficientPath { get; set; }
         List<TransactionInformation> dummy = new List<TransactionInformation>();
         public async Task<IList<TransactionHistoryLine>> FetchTransactionHistory(DerivationStrategyBase derivationStrategyBase, int? skip = null, int? count = null, TimeSpan? interval = null, CancellationToken cancellationToken = default)
         {
@@ -221,7 +257,7 @@ namespace BTCPayServer.Services.Wallets
             // * Sometimes we can ask the DB to do the filtering of rows: If that's the case, we should try to filter at the DB level directly as it is the most efficient.
             // * Sometimes we can't query the DB or the given network need to do additional filtering. In such case, we can't really filter at the DB level, and we need to fetch all transactions in memory.
             var needAdditionalFiltering = _Network.FilterValidTransactions(dummy) != dummy;
-            if (!NbxplorerConnectionFactory.Available || needAdditionalFiltering)
+            if (ForceInefficientPath || !NbxplorerConnectionFactory.Available || needAdditionalFiltering)
             {
                 var txs = await FetchTransactions(derivationStrategyBase);
                 var txinfos = txs.UnconfirmedTransactions.Transactions.Concat(txs.ConfirmedTransactions.Transactions)
@@ -244,7 +280,7 @@ namespace BTCPayServer.Services.Wallets
             {
                 await using var ctx = await NbxplorerConnectionFactory.OpenConnection();
                 var cmd = new CommandDefinition(
-                    commandText: "SELECT r.tx_id, r.seen_at, t.blk_id, t.blk_height, r.balance_change, r.asset_id, COALESCE((SELECT height FROM get_tip('BTC')) - t.blk_height + 1, 0) AS confs " +
+                    commandText: $"SELECT r.tx_id, r.seen_at, t.blk_id, t.blk_height, r.balance_change, r.asset_id, COALESCE((SELECT height FROM get_tip('BTC')) - t.blk_height + 1, 0) AS confs, {SelectFeeColumns()} " +
                     "FROM get_wallets_recent(@wallet_id, @code, @interval, @count, @skip) r " +
                     "JOIN txs t USING (code, tx_id) " +
                     "ORDER BY r.seen_at DESC",
@@ -257,7 +293,7 @@ namespace BTCPayServer.Services.Wallets
                         interval = interval is TimeSpan t ? t : TimeSpan.FromDays(365 * 1000)
                     },
                     cancellationToken: cancellationToken);
-                var rows = await ctx.QueryAsync<(string tx_id, DateTimeOffset seen_at, string blk_id, long? blk_height, long balance_change, string asset_id, long confs)>(cmd);
+                var rows = await ctx.QueryAsync<(string tx_id, DateTimeOffset seen_at, string blk_id, long? blk_height, long balance_change, string asset_id, long confs, long? fee, decimal? feerate)>(cmd);
                 rows.TryGetNonEnumeratedCount(out int c);
                 var lines = new List<TransactionHistoryLine>(c);
                 foreach (var row in rows)
@@ -269,11 +305,139 @@ namespace BTCPayServer.Services.Wallets
                         SeenAt = row.seen_at,
                         TransactionId = uint256.Parse(row.tx_id),
                         Confirmations = row.confs,
-                        BlockHash = string.IsNullOrEmpty(row.asset_id) ? null : uint256.Parse(row.blk_id)
+                        BlockHash = string.IsNullOrEmpty(row.blk_id) ? null : uint256.Parse(row.blk_id),
+                        Fee = row.fee is null ? null : Money.Satoshis(row.fee.Value),
+                        FeeRate = row.feerate is null ? null : new FeeRate(row.feerate.Value)
                     });
                 }
                 return lines;
             }
+        }
+
+        internal string SelectFeeColumns()
+        => HasFeeInformation() ? "(metadata->'fees')::BIGINT AS fee, (metadata->'feeRate')::NUMERIC AS feerate"  : "NULL AS fee, NULL AS feerate";
+
+        public bool? ForceHasFeeInformation { get; set; }
+        internal bool HasFeeInformation()
+        => ForceHasFeeInformation ?? AsVersion(this.Dashboard.Get(Network.CryptoCode)?.Status?.Version ?? "") >= new Version("2.5.18");
+
+        public async Task<BumpableTransactions> GetBumpableTransactions(DerivationStrategyBase derivationStrategyBase, CancellationToken cancellationToken)
+        {
+            var result = new BumpableTransactions();
+            result.Support = BumpableSupport.NotConfigured;
+            if (!NbxplorerConnectionFactory.Available)
+                return result;
+            result.Support = BumpableSupport.NotCompatible;
+            var state = this.Dashboard.Get(Network.CryptoCode);
+            if (AsVersion(state?.Status?.Version ?? "") < new Version("2.5.22"))
+                return result;
+            result.Support = BumpableSupport.NotSynched;
+            if (state?.Status?.IsFullySynched is not true)
+                return result;
+            result.Support = BumpableSupport.Ok;
+            await using var ctx = await NbxplorerConnectionFactory.OpenConnection();
+            var cmd = new CommandDefinition(
+                    commandText: """
+                    WITH unconfs AS (
+                    	SELECT code, tx_id, raw
+                    	FROM txs
+                    	WHERE code=@code AND raw IS NOT NULL AND mempool IS TRUE AND replaced_by IS NULL AND blk_id IS NULL),
+                    tracked_txs AS (
+                    SELECT code, tx_id,
+                            COUNT(*) FILTER (WHERE is_out IS FALSE) input_count,
+                            COUNT(*) FILTER (WHERE is_out IS TRUE AND feature = 'Change') change_count
+                        FROM nbxv1_tracked_txs
+                    	WHERE code = @code AND wallet_id=@walletId AND mempool IS TRUE AND replaced_by IS NULL AND blk_id IS NULL
+                    	GROUP BY code, tx_id
+                    ),
+                    unspent_utxos AS (
+                        SELECT code, tx_id, COUNT(*) FILTER (WHERE input_tx_id IS NULL) unspent_count
+                        FROM wallets_utxos
+                        WHERE code = @code AND wallet_id=@walletId AND mempool IS TRUE AND replaced_by IS NULL AND blk_id IS NULL
+                        GROUP BY code, tx_id
+                    )
+                    SELECT tt.tx_id, u.raw, tt.input_count, tt.change_count, COALESCE(uu.unspent_count, 0) FROM unconfs u
+                    JOIN tracked_txs tt USING (code, tx_id)
+                    LEFT JOIN unspent_utxos uu USING (code, tx_id);
+                    """,
+                    parameters: new
+                    {
+                        code = Network.CryptoCode,
+                        walletId = NBXplorer.Client.DBUtils.nbxv1_get_wallet_id(Network.CryptoCode, derivationStrategyBase.ToString())
+                    },
+                    cancellationToken: cancellationToken);
+
+            // We can only replace mempool transaction where all inputs belong to us. (output_count and input_count count those belonging to us)
+            var rows = (await ctx.QueryAsync<(string tx_id, byte[] raw, int input_count, int change_count, int unspent_count)>(cmd));
+            if (Enumerable.TryGetNonEnumeratedCount(rows, out int c) && c == 0)
+                return result;
+
+            HashSet<uint256> canRBF = new();
+            HashSet<uint256> canCPFP = new();
+            foreach (var r in rows)
+            {
+                Transaction tx;
+                try
+                {
+                    tx = Transaction.Load(r.raw, Network.NBitcoinNetwork);
+                }
+                catch
+                {
+                    continue;
+                }
+
+                var rbf = state.MempoolInfo?.FullRBF is true || Network.IsBTC || tx.RBF;
+                rbf &= tx.Inputs.Count == r.input_count;
+                rbf &= r.change_count > 0 || tx.Outputs.Count == 1;
+                if (rbf)
+                {
+                    canRBF.Add(uint256.Parse(r.tx_id));
+                }
+                if (r.unspent_count > 0)
+                {
+                    canCPFP.Add(uint256.Parse(r.tx_id));
+                }
+            }
+
+            // Then only transactions that doesn't have any descendant (outside itself)
+            var entries = await _Client.RPCClient.FetchMempoolEntries(canRBF.Concat(canCPFP).ToHashSet(), cancellationToken);
+            foreach (var entry in entries)
+            {
+				if (entry.Value.DescendantCount != 1)
+                {
+                    canRBF.Remove(entry.Key);
+                }
+            }
+            if (state is not
+                {
+                    MempoolInfo:
+                    {
+                        IncrementalRelayFeeRate: { } incRelayFeeRate,
+                        MempoolMinfeeRate: { } minFeeRate
+                    }
+                })
+            {
+                incRelayFeeRate = new FeeRate(1.0m);
+                minFeeRate = new FeeRate(1.0m);
+            }
+            foreach (var r in rows)
+            {
+                var id = uint256.Parse(r.tx_id);
+				if (!entries.TryGetValue(id, out var mempoolEntry))
+                {
+					canCPFP.Remove(id);
+					canRBF.Remove(id);
+				}
+                result.Add(id, new(canRBF.Contains(id), canCPFP.Contains(id), new ReplacementInfo(mempoolEntry, incRelayFeeRate, minFeeRate)));
+            }
+            return result;
+        }
+
+        private Version AsVersion(string version)
+        {
+            if (Version.TryParse(version.Split('-').FirstOrDefault(), out var v))
+                return v;
+            return new Version("0.0.0.0");
         }
 
         private static TransactionHistoryLine FromTransactionInformation(TransactionInformation t)
@@ -284,7 +448,9 @@ namespace BTCPayServer.Services.Wallets
                 Confirmations = t.Confirmations,
                 Height = t.Height,
                 SeenAt = t.Timestamp,
-                TransactionId = t.TransactionId
+                TransactionId = t.TransactionId,
+                Fee = t.Metadata?.Fees,
+                FeeRate = t.Metadata?.FeeRate
             };
         }
 
@@ -345,6 +511,7 @@ namespace BTCPayServer.Services.Wallets
                           .Select(c => new ReceivedCoin()
                           {
                               KeyPath = c.KeyPath,
+                              KeyIndex = c.KeyIndex,
                               Value = c.Value,
                               Timestamp = c.Timestamp,
                               OutPoint = c.Outpoint,
@@ -358,7 +525,7 @@ namespace BTCPayServer.Services.Wallets
 
         public Task<GetBalanceResponse> GetBalance(DerivationStrategyBase derivationStrategy, CancellationToken cancellation = default(CancellationToken))
         {
-            return _MemoryCache.GetOrCreateAsync("CACHEDBALANCE_" + derivationStrategy.ToString(), async (entry) =>
+            return _MemoryCache.GetOrCreateAsync("CACHEDBALANCE_" + derivationStrategy, async (entry) =>
             {
                 var result = await _Client.GetBalanceAsync(derivationStrategy, cancellation);
                 entry.AbsoluteExpiration = DateTimeOffset.UtcNow + CacheSpan;
@@ -366,7 +533,45 @@ namespace BTCPayServer.Services.Wallets
             });
         }
     }
+    public record ReplacementInfo(MempoolEntry Entry, FeeRate IncrementalRelayFee, FeeRate MinMempoolFeeRate)
+    {
+        public record BumpResult(Money NewTxFee, Money BumpTxFee, FeeRate NewTxFeeRate, FeeRate NewEffectiveFeeRate);
+        public BumpResult CalculateBumpResult(FeeRate newEffectiveFeeRate)
+        {
+            var newTotalFee = GetFeeRoundUp(newEffectiveFeeRate, GetPackageVirtualSize());
+            var oldTotalFee = GetPackageFee();
+            var bump = newTotalFee - oldTotalFee;
+            var newTxFee = Entry.BaseFee + bump;
+            var newTxFeeRate = new FeeRate(newTxFee, Entry.VirtualSizeBytes);
+            var totalFeeRate = new FeeRate(newTotalFee, GetPackageVirtualSize());
+            return new BumpResult(newTxFee, bump, newTxFeeRate, totalFeeRate);
+        }
+        static Money GetFeeRoundUp(FeeRate feeRate, int vsize) => (Money)((feeRate.FeePerK.Satoshi * vsize + 999) / 1000);
+        public FeeRate CalculateNewMinFeeRate()
+        {
+            var packageFeeRate = GetEffectiveFeeRate();
+            var newMinFeeRate = new FeeRate(packageFeeRate.SatoshiPerByte + IncrementalRelayFee.SatoshiPerByte);
+            var bump = CalculateBumpResult(newMinFeeRate);
 
+            if (bump.NewTxFeeRate < MinMempoolFeeRate)
+            {
+                // We need to pay a bit more fee for the transaction to be relayed
+                var newTxFee = GetFeeRoundUp(MinMempoolFeeRate, Entry.VirtualSizeBytes);
+                newMinFeeRate = new FeeRate(GetPackageFee() - Entry.BaseFee + newTxFee, GetPackageVirtualSize());
+            }
+            return newMinFeeRate;
+        }
+
+        public int GetPackageVirtualSize() =>
+            Entry.DescendantVirtualSizeBytes + Entry.AncestorVirtualSizeBytes - Entry.VirtualSizeBytes;
+        public Money GetPackageFee() =>
+            Entry.DescendantFees + Entry.AncestorFees - Entry.BaseFee;
+        // Note: This isn't a correct way to calculate the package fee rate, but it is good enough for our purpose.
+        // It is only accounting the fee from direct ancestors/descendants. (not of uncles/cousins/brothers)
+        // Another more precise fee rate is documented https://x.com/ajtowns/status/1886025911562309967
+        // But it is more complex to calculate, as we need to recursively fetch the mempool for all the descendants
+        public FeeRate GetEffectiveFeeRate() => new FeeRate(GetPackageFee(), GetPackageVirtualSize());
+    }
     public class TransactionHistoryLine
     {
         public DateTimeOffset SeenAt { get; set; }
@@ -375,5 +580,7 @@ namespace BTCPayServer.Services.Wallets
         public uint256 TransactionId { get; set; }
         public uint256 BlockHash { get; set; }
         public IMoney BalanceChange { get; set; }
+        public FeeRate FeeRate { get; set; }
+        public Money Fee { get; set; }
     }
 }

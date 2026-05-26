@@ -1,11 +1,9 @@
 @using BTCPayServer.Client
-@using BTCPayServer.Client.Models
 @using BTCPayServer.Services
-@using SetPasswordViewModel = BTCPayServer.Models.ManageViewModels.SetPasswordViewModel
 @inject DisplayFormatter DisplayFormatter
 @model InvoicesModel
 @{
-    ViewData.SetActivePage(InvoiceNavPages.Index, StringLocalizer["Invoices"]);
+    ViewData.SetLayoutModel(new("Invoices", StringLocalizer["Invoices"]));
     var statusFilterCount = CountArrayFilter("status") + CountArrayFilter("exceptionstatus") + (HasBooleanFilter("includearchived") ? 1 : 0) + (HasBooleanFilter("unusual") ? 1 : 0);
     var hasDateFilter = HasArrayFilter("startdate") || HasArrayFilter("enddate");
     var appFilterCount = Model.Apps.Count(app => HasArrayFilter("appid", app.Id));
@@ -15,13 +13,13 @@
 {
     private int CountArrayFilter(string type) =>
         Model.Search.ContainsFilter(type) ? Model.Search.GetFilterArray(type).Length : 0;
-    
+
     private bool HasArrayFilter(string type, string key = null) =>
         Model.Search.ContainsFilter(type) && (key is null || Model.Search.GetFilterArray(type).Contains(key));
 
     private bool HasBooleanFilter(string key) =>
         Model.Search.ContainsFilter(key) && Model.Search.GetFilterBool(key) is true;
-    
+
     private bool HasCustomDateFilter() =>
         Model.Search.ContainsFilter("startdate") && Model.Search.ContainsFilter("enddate");
 }
@@ -32,13 +30,18 @@
         .invoiceId-col {
             min-width: 8rem;
         }
-        .invoice-details-row > td  {
+        .invoice-details-row > td {
             padding: 1.5rem 1rem 0 2.65rem;
         }
         .dropdown > .btn {
             min-width: 7rem;
             padding-left: 1rem;
             text-align: left;
+        }
+        #SearchText {
+            flex-shrink: 0;
+            min-width: 200px;
+            max-width: 300px;
         }
         @@media (max-width: 568px) {
             #SearchText {
@@ -49,7 +52,7 @@
 }
 
 @section PageFootContent {
-    @*Without async, somehow selenium do not manage to click on links in this page*@
+    @*Script must be async to ensure proper page loading*@
     <script src="~/modal/btcpay.js" asp-append-version="true" async></script>
 
     @* Custom Range Modal *@
@@ -102,20 +105,33 @@
 
 <div class="sticky-header">
     <h2>
-        <span text-translate="true">@ViewData["Title"]</span>
+        <span>@ViewData["Title"]</span>
         <a href="#descriptor" data-bs-toggle="collapse">
             <vc:icon symbol="info" />
         </a>
     </h2>
-	<a id="page-primary"
-       permission="@Policies.CanCreateInvoice"
-       asp-action="CreateInvoice" 
-       asp-route-storeId="@Model.StoreId" 
-       asp-route-searchTerm="@Model.SearchTerm" 
-       class="btn btn-primary mt-3 mt-sm-0"
-       text-translate="true">
-        Create Invoice
-    </a>
+    <div>
+        <a
+            id="view-report"
+            permission="@Policies.CanViewReports"
+            asp-controller="UIReports"
+            asp-action="StoreReports"
+            asp-route-storeId="@Model.StoreId"
+            asp-route-viewName="Invoices"
+            class="btn btn-secondary">
+            <vc:icon symbol="nav-reporting" />
+            <span text-translate="true">Reporting</span>
+        </a>
+        <a id="page-primary"
+           permission="@Policies.CanCreateInvoice"
+           asp-action="CreateInvoice"
+           asp-route-storeId="@Model.StoreId"
+           asp-route-searchTerm="@Model.SearchTerm"
+           class="btn btn-primary"
+           text-translate="true">
+            Create Invoice
+        </a>
+    </div>
 </div>
 
 <div id="descriptor" class="collapse">
@@ -150,7 +166,7 @@
             </div>
             <div class="modal-body">
                 <div class="form-group row">
-                    <label for="dtpStartDate" class="col-sm-3 col-form-label">Start Date</label>
+                    <label for="dtpStartDate" class="col-sm-3 col-form-label" text-translate="true">Start Date</label>
                     <div class="col-sm-9">
                         <div class="input-group">
                             <input id="dtpStartDate" class="form-control flatdtpicker" type="datetime-local"
@@ -232,7 +248,7 @@
                     <a asp-action="ListInvoices" asp-route-storeId="@Model.StoreId" asp-route-count="@Model.Count" asp-route-searchTerm="@Model.Search.Toggle("appid", app.Id)" class="dropdown-item @(HasArrayFilter("appid", app.Id) ? "custom-active" : "")">@app.AppName</a>
                 }
             </div>
-        </div> 
+        </div>
     }
     <div class="dropdown">
         <button id="DateOptionsToggle" class="btn btn-secondary dropdown-toggle dropdown-toggle-custom-caret" type="button" data-bs-toggle="dropdown" aria-expanded="false">
@@ -267,7 +283,34 @@
             <button type="button" class="dropdown-item @(HasCustomDateFilter() ? "custom-active" : "")" data-bs-toggle="modal" data-bs-target="#customRangeModal" text-translate="true">Custom Range</button>
         </div>
     </div>
+    @if (statusFilterCount > 0 || appFilterCount > 0 || hasDateFilter || !string.IsNullOrEmpty(Model.SearchText))
+    {
+        <button id="clearAllFiltersBtn" type="button" class="btn btn-secondary" style="min-width: 7rem;" title="@StringLocalizer["Clear all filters"]">
+            <span class="align-middle" text-translate="true">Clear All</span>
+        </button>
+    }
 </form>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const clearBtn = document.getElementById('clearAllFiltersBtn');
+        if (clearBtn) {
+            clearBtn.addEventListener('click', function () {
+                const form = clearBtn.closest('form');
+                if (!form) return;
+                // Reset search text
+                const searchText = form.querySelector('[name="SearchText"]');
+                if (searchText) searchText.value = '';
+                // Reset SearchTerm (filters)
+                const searchTerm = form.querySelector('[name="SearchTerm"]');
+                if (searchTerm) searchTerm.value = '';
+                // Optionally reset other hidden fields if needed
+                // Submit the form
+                form.submit();
+            });
+        }
+    });
+</script>
 
 @if (Model.Invoices.Any())
 {
@@ -281,7 +324,7 @@
                             <input type="checkbox" class="form-check-input mass-action-select-all" />
                         </th>
                         <th class="date-col">
-                            <div class="d-flex align-items-center gap-1">
+                            <div class="d-flex align-items-center gap-3">
                                 <span text-translate="true">Date</span>
                                 <button type="button" class="btn btn-link p-0 switch-time-format only-for-js" title="@StringLocalizer["Switch date format"]">
                                     <vc:icon symbol="time" />
@@ -377,12 +420,11 @@
         </div>
 
         <vc:pager view-model="Model" />
-    
     </form>
 }
 else
 {
-    <p class="text-secondary mt-3" text-translate="true">
+    <p data-testid="no-invoices" class="text-secondary mt-3" text-translate="true">
         There are no invoices matching your criteria.
     </p>
 }

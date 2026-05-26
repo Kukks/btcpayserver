@@ -97,7 +97,7 @@
                         }
                     },
                     "404": {
-                        "description": "The pull payment has not been found. Wellknown error code is: `pullpayment-not-found`",
+                        "description": "The pull payment has not been found. Well-known error code is: `pullpayment-not-found`",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -306,33 +306,17 @@
                     "Pull payments (Public)"
                 ],
                 "security": []
-            }
-        },
-        "/api/v1/stores/{storeId}/pull-payments/{pullPaymentId}": {
-            "parameters": [
-                {
-                    "$ref": "#/components/parameters/StoreId"
-                },
-                {
-                    "name": "pullPaymentId",
-                    "in": "path",
-                    "required": true,
-                    "description": "The ID of the pull payment",
-                    "schema": {
-                        "type": "string"
-                    }
-                }
-            ],
+            },
             "delete": {
                 "operationId": "PullPayments_ArchivePullPayment",
                 "summary": "Archive a pull payment",
-                "description": "Archive this pull payment (Will cancel all payouts awaiting for payment)",
+                "description": "Archive this pull payment (Will cancel all payouts awaiting for payment). The store is resolved automatically from the pull payment.",
                 "responses": {
                     "200": {
                         "description": "The pull payment has been archived"
                     },
                     "404": {
-                        "description": "The pull payment has not been found, or does not belong to this store"
+                        "description": "The pull payment has not been found. Well-known error code is: `pullpayment-not-found`"
                     }
                 },
                 "tags": [
@@ -437,7 +421,7 @@
                         }
                     },
                     "400": {
-                        "description": "Wellknown error codes are: `duplicate-destination`, `expired`, `not-started`, `archived`, `overdraft`, `amount-too-low`, `payment-method-not-supported`",
+                        "description": "Well-known error codes are: `duplicate-destination`, `expired`, `not-started`, `archived`, `overdraft`, `amount-too-low`, `payment-method-not-supported`",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -587,7 +571,7 @@
                         }
                     },
                     "400": {
-                        "description": "Wellknown error codes are: `duplicate-destination`, `expired`, `not-started`, `archived`, `overdraft`, `amount-too-low`, `payment-method-not-supported`",
+                        "description": "Well-known error codes are: `duplicate-destination`, `expired`, `not-started`, `archived`, `overdraft`, `amount-too-low`, `payment-method-not-supported`",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -740,7 +724,7 @@
                         }
                     },
                     "400": {
-                        "description": "Wellknown error codes are: `rate-unavailable`, `invalid-state`, `amount-too-low`, `old-revision`",
+                        "description": "Well-known error codes are: `rate-unavailable`, `invalid-state`, `amount-too-low`, `old-revision`",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -824,7 +808,7 @@
                         }
                     },
                     "400": {
-                        "description": "Wellknown error codes are: `invalid-state`",
+                        "description": "Well-known error codes are: `invalid-state`",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -901,7 +885,7 @@
                         }
                     },
                     "400": {
-                        "description": "Wellknown error codes are: `invalid-state`",
+                        "description": "Well-known error codes are: `invalid-state`",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -1198,6 +1182,10 @@
         {
             "name": "Pull payments payout (Public)",
             "description": "Pull payments payout (Public) operations"
+        },
+        {
+            "name": "Stores (Payouts)",
+            "description": "Store pull payment payout operations"
         }
     ]
 }

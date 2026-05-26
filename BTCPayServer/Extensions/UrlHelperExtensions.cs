@@ -1,9 +1,10 @@
-
 using System;
 using BTCPayServer;
+using BTCPayServer.Abstractions;
 using BTCPayServer.Abstractions.Extensions;
 using BTCPayServer.Client.Models;
 using BTCPayServer.Controllers;
+using BTCPayServer.Plugins.Wallets;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 
@@ -28,13 +29,10 @@ namespace Microsoft.AspNetCore.Mvc
                 return url;
             return null;
         }
+
 #nullable restore
-
-        public static string LoginCodeLink(this LinkGenerator urlHelper, string loginCode, string returnUrl, string scheme, HostString host, string pathbase)
-        {
-            return urlHelper.GetUriByAction(nameof(UIAccountController.LoginUsingCode), "UIAccount", new { loginCode, returnUrl }, scheme, host, pathbase);
-        }
-
+        public static string PaymentRequestLink(this LinkGenerator urlHelper, string paymentRequestId, RequestBaseUrl baseUrl)
+        => PaymentRequestLink(urlHelper, paymentRequestId, baseUrl.Scheme, baseUrl.Host, baseUrl.PathBase);
         public static string PaymentRequestLink(this LinkGenerator urlHelper, string paymentRequestId, string scheme, HostString host, string pathbase)
         {
             return urlHelper.GetUriByAction(
@@ -42,6 +40,16 @@ namespace Microsoft.AspNetCore.Mvc
                 controller: "UIPaymentRequest",
                 values: new { payReqId = paymentRequestId },
                 scheme, host, pathbase);
+        }
+
+        public static string WalletTransactionsLink(this LinkGenerator urlHelper, WalletId walletId, RequestBaseUrl baseUrl)
+        {
+            return urlHelper.GetUriByAction(
+                action: nameof(UIWalletsController.WalletTransactions),
+                controller: "UIWallets",
+                values: new { area = WalletsPlugin.Area, walletId = walletId.ToString() },
+                baseUrl
+            );
         }
 
         public static string AppLink(this LinkGenerator urlHelper, string appId, string scheme, HostString host, string pathbase)
@@ -53,6 +61,8 @@ namespace Microsoft.AspNetCore.Mvc
                 scheme, host, pathbase);
         }
 
+        public static string InvoiceLink(this LinkGenerator urlHelper, string invoiceId, RequestBaseUrl baseUrl)
+        => InvoiceLink(urlHelper, invoiceId, baseUrl.Scheme, baseUrl.Host, baseUrl.PathBase);
         public static string InvoiceLink(this LinkGenerator urlHelper, string invoiceId, string scheme, HostString host, string pathbase)
         {
             return urlHelper.GetUriByAction(
@@ -79,6 +89,33 @@ namespace Microsoft.AspNetCore.Mvc
                 values: new { invoiceId },
                 scheme, host, pathbase);
         }
+#nullable enable
+        public static string ReceiptLink(this LinkGenerator urlHelper, string invoiceId, RequestBaseUrl baseUrl)
+            => urlHelper.GetUriByAction(
+                action: nameof(UIInvoiceController.InvoiceReceipt),
+                controller: "UIInvoice",
+                values: new { invoiceId },
+                baseUrl);
+
+
+        public static string InvoiceCheckoutLink(this LinkGenerator urlHelper, string invoiceId, RequestBaseUrl baseUrl)
+            => urlHelper.GetUriByAction(
+                    action: nameof(UIInvoiceController.Checkout),
+                    controller: "UIInvoice",
+                    values: new { invoiceId },
+                    baseUrl
+                );
+
+        public static string GetUriByAction(
+            this LinkGenerator generator,
+            string action,
+            string controller,
+            object? values,
+            RequestBaseUrl requestBaseUrl,
+            FragmentString fragment = default,
+            LinkOptions? options = null) => generator.GetUriByAction(action, controller, values, requestBaseUrl.Scheme, requestBaseUrl.Host, requestBaseUrl.PathBase, fragment, options) ?? throw new InvalidOperationException($"Bug, unable to generate link for {controller}.{action}");
+
+#nullable restore
 
         public static string PayoutLink(this LinkGenerator urlHelper, string walletIdOrStoreId, string pullPaymentId, PayoutState payoutState, string scheme, HostString host, string pathbase)
         {

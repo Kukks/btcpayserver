@@ -1,6 +1,4 @@
 using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using BTCPayServer.Client.Models;
@@ -25,7 +23,6 @@ public class LightningHistogramService
         var to = DateTimeOffset.UtcNow;
         var from = to - TimeSpan.FromDays(days);
         var ticks = (to - from).Ticks;
-        var interval = TimeSpan.FromTicks(ticks / pointCount);
 
         // TODO: We can't just list all invoices and payments, we need to filter them by date
         // but the client doesn't support that yet so let's just disable this for now. See #6518

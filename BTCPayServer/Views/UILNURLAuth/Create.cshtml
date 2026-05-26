@@ -1,7 +1,7 @@
 @using LNURL
 @model Uri
 @{
-    ViewData.SetActivePage(ManageNavPages.TwoFactorAuthentication, StringLocalizer["Register your Lightning node for LNURL Auth"]);
+    ViewData.SetLayoutModel(new(nameof(ManageNavPages.TwoFactorAuthentication), StringLocalizer["Register your Lightning node for LNURL Auth"]));
     var formats = new Dictionary<string, string>
     {
         { "Bech32", LNURL.EncodeUri(Model, "login", true).ToString().ToUpperInvariant() },
@@ -9,7 +9,7 @@
     };
 }
 
-<h2 class="mb-2 mb-lg-3" text-translate="true">@ViewData["Title"]</h2>
+<h2 class="mb-2 mb-lg-3">@ViewData["Title"]</h2>
 <partial name="_StatusMessage" />
 
 <p text-translate="true">Scan the QR code with your Lightning wallet to link it to your user account.</p>

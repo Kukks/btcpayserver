@@ -1,16 +1,10 @@
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using BTCPayServer.Client.Models;
 using BTCPayServer.Data;
 using BTCPayServer.Events;
 using BTCPayServer.Payments;
-using BTCPayServer.Payments.Bitcoin;
 using Microsoft.EntityFrameworkCore;
-using NBitcoin;
-using NBitpayClient;
-using Newtonsoft.Json.Linq;
 
 namespace BTCPayServer.Services.Invoices
 {
@@ -51,7 +45,7 @@ namespace BTCPayServer.Services.Invoices
                 invoiceEntity = invoice.GetBlob();
                 var pmi = PaymentMethodId.Parse(paymentData.PaymentMethodId);
                 PaymentPrompt paymentMethod = invoiceEntity.GetPaymentPrompt(pmi);
-                if (paymentMethod is null || !_handlers.TryGetValue(pmi, out var handler))
+                if (paymentMethod is null || !_handlers.TryGetValue(pmi, out _))
                     return null;
                 await context.Payments.AddAsync(paymentData);
 

@@ -1,5 +1,3 @@
-@using System.Globalization
-@using BTCPayServer.Payments
 @using BTCPayServer.Payments.Bitcoin
 @using BTCPayServer.Services
 @using BTCPayServer.Services.Invoices
@@ -81,7 +79,7 @@
                 {
                     <tr style="@(payment.Replaced ? "text-decoration: line-through" : "")">
                         <td>@payment.PaymentMethodId</td>
-                        <td>@(payment.CryptoPaymentData.KeyPath?.ToString()?? StringLocalizer["Unknown"])</td>
+                        <td>@(payment.CryptoPaymentData.KeyPath?.ToString() ?? payment.CryptoPaymentData.KeyIndex?.ToString() ?? StringLocalizer["Unknown"])</td>
                         <td>
                             <vc:truncate-center text="@payment.DepositAddress.ToString()" classes="truncate-center-id" />
                         </td>

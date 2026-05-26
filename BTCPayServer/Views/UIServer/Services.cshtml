@@ -1,10 +1,11 @@
 @model BTCPayServer.Models.ServerViewModels.ServicesViewModel
 @{
-    ViewData.SetActivePage(ServerNavPages.Services, StringLocalizer["Services"]);
+    ViewData.SetLayoutModel(new LayoutModel(nameof(ServerNavPages.Services), StringLocalizer["Services"])
+        .SetCategory(WellKnownCategories.Server));
 }
 
 <div class="sticky-header">
-	<h2 class="my-1" text-translate="true">@ViewData["Title"]</h2>
+	<h2 class="my-1">@ViewData["Title"]</h2>
 </div>
 <partial name="_StatusMessage" />
 
@@ -67,7 +68,10 @@
                 <tr>
                     <td>@s.Name</td>
                     <td style="text-align: right">
-                        <a href="@s.Link" rel="noreferrer noopener" text-translate="true">See information</a>
+                        @{
+                            var link = s.Link ?? Url.Action(s.ActionName, s.ControllerName, s.RouteValues, Context.Request.Scheme);
+                        }
+                        <a href="@link" rel="noreferrer noopener" text-translate="true">See information</a>
                     </td>
                 </tr>
             }

@@ -1,8 +1,9 @@
-@using BTCPayServer.Abstractions.Models
 @inject BTCPayServer.Security.ContentSecurityPolicies Csp
+@using BTCPayServer.Plugins.Impersonation
 @model UsersViewModel
 @{
-    ViewData.SetActivePage(ServerNavPages.Users, StringLocalizer["Users"]);
+    ViewData.SetLayoutModel(new LayoutModel(nameof(ServerNavPages.Users), StringLocalizer["Users"])
+        .SetCategory(WellKnownCategories.Server));
     var nextUserEmailSortOrder = (string)ViewData["NextUserEmailSortOrder"];
     var userEmailSortOrder = nextUserEmailSortOrder switch
     {
@@ -13,6 +14,7 @@
     Csp.UnsafeEval();
     const string sortByDesc = "Sort by email descending...";
     const string sortByAsc = "Sort by email ascending...";
+    var currentUserId = User.GetIdOrNull();
 }
 
 @section PageFootContent {
@@ -29,8 +31,8 @@
 }
 
 <div class="sticky-header">
-    <h2 text-translate="true">@ViewData["Title"]</h2>
-	<a id="page-primary" asp-action="CreateUser" class="btn btn-primary" role="button">
+    <h2>@ViewData["Title"]</h2>
+	<a id="page-primary" asp-action="CreateUser" class="btn btn-primary" role="button" text-translate="true">
         Add User
     </a>
 </div>
@@ -76,7 +78,7 @@
             var storesCount = user.Stores.Count();
             var pendingInvite = !string.IsNullOrEmpty(user.InvitationUrl);
             var detailsId = user.Stores.Any() ? $"user_details_{user.Id}" : null;
-            <tr id="user_@user.Id" class="user-overview-row mass-action-row">
+            <tr id="user_@user.Id" data-email="@user.Email" class="user-overview-row mass-action-row">
                 <td>
                     <div class="d-flex align-items-center gap-2">
                         <span class="user-email">@user.Email</span>
@@ -89,7 +91,7 @@
                 <td class="@(storesCount > 0 ? null : "text-muted")">@(storesCount == 1 ? StringLocalizer["{0} Store", storesCount] : StringLocalizer["{0} Stores", storesCount])</td>
                 <td>@user.Created?.ToBrowserDate()</td>
                 <td>
-                    <span class="user-status badge bg-@status.Item2" text-translate="true">@status.Item1</span>
+                    <span class="user-status badge bg-@status.Item2">@status.Item1</span>
                 </td>
                 <td class="actions-col">
                     <div class="d-inline-flex align-items-center gap-3">
@@ -166,5 +168,5 @@
 
 <vc:pager view-model="Model"></vc:pager>
 
-<partial name="_Confirm" model="@(new ConfirmModel("Send verification email", $"This will send a verification email to the user.", "Send"))" />
+<partial name="_Confirm" model="@(new ConfirmModel(StringLocalizer["Send verification email"], StringLocalizer["This will send a verification email to the user."], StringLocalizer["Send"]))" />
 <partial name="ShowQR" />

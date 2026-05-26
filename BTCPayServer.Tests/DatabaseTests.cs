@@ -1,11 +1,14 @@
 using System.Linq;
 using System.Threading.Tasks;
+using BTCPayServer.Abstractions;
+using BTCPayServer.Data;
+using BTCPayServer.HostedServices;
 using BTCPayServer.Payments;
+using BTCPayServer.Services;
 using Dapper;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
 using NBitcoin;
-using NBitcoin.Altcoins;
-using NBitpayClient;
 using Newtonsoft.Json.Linq;
 using Xunit;
 using Xunit.Abstractions;
@@ -13,11 +16,25 @@ using Xunit.Abstractions;
 namespace BTCPayServer.Tests
 {
     [Trait("Integration", "Integration")]
-    public class DatabaseTests : UnitTestBase
+    public class DatabaseTests(ITestOutputHelper helper) : UnitTestBase(helper)
     {
-
-        public DatabaseTests(ITestOutputHelper helper):base(helper)
+        [Fact]
+        public async Task CanConcurrentlyModifyWalletObject()
         {
+            var tester = CreateDBTester();
+            await tester.MigrateUntil();
+            var walletRepo = tester.GetWalletRepository();
+
+            var wid = new WalletObjectId(new WalletId("AAA", "ddd"), "a", "b");
+            var all = Enumerable.Range(0, 10)
+#pragma warning disable CS0618 // Type or member is obsolete
+                .Select(i => walletRepo.ModifyWalletObjectData(wid, o => { o["idx"] = i; }))
+#pragma warning restore CS0618 // Type or member is obsolete
+                .ToArray();
+            foreach (var task in all)
+            {
+                await task;
+            }
         }
 
         [Fact]
@@ -26,12 +43,12 @@ namespace BTCPayServer.Tests
             var tester = CreateDBTester();
             await tester.MigrateUntil();
             var invoiceRepository = tester.GetInvoiceRepository();
-            using var ctx = tester.CreateContext();
+            await using var ctx = tester.CreateContext();
             var conn = ctx.Database.GetDbConnection();
 
             async Task AddPrompt(string invoiceId, string paymentMethodId, bool activated = true)
             {
-                JObject prompt = new JObject();
+                var prompt = new JObject();
                 if (!activated)
                     prompt["inactive"] = true;
                 prompt["currency"] = "USD";
@@ -46,19 +63,19 @@ namespace BTCPayServer.Tests
             }
 
             await conn.ExecuteAsync("""
-                INSERT INTO "Invoices" ("Id", "Created", "Status","Currency") VALUES 
+                INSERT INTO "Invoices" ("Id", "Created", "Status","Currency") VALUES
                 ('BTCOnly', NOW(), 'New', 'USD'),
                 ('LTCOnly', NOW(), 'New', 'USD'),
                 ('LTCAndBTC', NOW(), 'New', 'USD'),
                 ('LTCAndBTCLazy', NOW(), 'New', 'USD')
                 """);
-            foreach (var invoiceId in new string[] { "LTCOnly", "LTCAndBTCLazy", "LTCAndBTC" })
+            foreach (var invoiceId in new[] { "LTCOnly", "LTCAndBTCLazy", "LTCAndBTC" })
             {
-                await AddPrompt(invoiceId, "LTC-CHAIN", true);
+                await AddPrompt(invoiceId, "LTC-CHAIN");
             }
-            foreach (var invoiceId in new string[] { "BTCOnly", "LTCAndBTC" })
+            foreach (var invoiceId in new[] { "BTCOnly", "LTCAndBTC" })
             {
-                await AddPrompt(invoiceId, "BTC-CHAIN", true);
+                await AddPrompt(invoiceId, "BTC-CHAIN");
             }
             await AddPrompt("LTCAndBTCLazy", "BTC-CHAIN", false);
 
@@ -125,16 +142,78 @@ namespace BTCPayServer.Tests
         }
 
         [Fact]
+        public async Task CanOnlyMarkMatchingPendingTransactionAsBroadcast()
+        {
+            var tester = CreateDBTester();
+            await tester.MigrateUntil();
+            const string storeId = "TestStore";
+
+            await using (var ctx = tester.CreateContext())
+            {
+                await ctx.Database.GetDbConnection().ExecuteAsync("""
+                    INSERT INTO "Stores" ("Id", "SpeedPolicy") VALUES (@storeId, 0);
+                    """, new { storeId });
+            }
+
+            var networkProvider = CreateNetworkProvider();
+            var network = networkProvider.GetNetwork<BTCPayNetwork>("BTC").NBitcoinNetwork;
+            var service = new PendingTransactionService(
+                networkProvider,
+                tester.CreateContextFactory(),
+                new EventAggregator(new BTCPayServer.Logging.Logs()),
+                NullLogger<PendingTransactionService>.Instance);
+            var requestBaseUrl = RequestBaseUrl.FromUrl("https://example.com");
+            var psbtA = CreatePendingTransactionPSBT(network, 1, Money.Satoshis(10_000));
+            var psbtB = CreatePendingTransactionPSBT(network, 2, Money.Satoshis(20_000));
+            var pendingA = await service.CreatePendingTransaction(storeId, "BTC", psbtA, requestBaseUrl);
+            var pendingB = await service.CreatePendingTransaction(storeId, "BTC", psbtB, requestBaseUrl);
+
+            await service.Broadcasted(new PendingTransactionService.PendingTransactionFullId("BTC", storeId, pendingA.Id), psbtB.GetGlobalTransaction());
+
+            await using (var ctx = tester.CreateContext())
+            {
+                var reloadedPendingA = await ctx.PendingTransactions.SingleAsync(p => p.Id == pendingA.Id);
+                Assert.Equal(PendingTransactionState.Pending, reloadedPendingA.State);
+            }
+
+            var malleatedTransaction = psbtA.GetGlobalTransaction().Clone();
+            malleatedTransaction.Inputs[0].ScriptSig = new Script(Op.GetPushOp(new byte[] { 1, 2, 3 }));
+            Assert.NotEqual(psbtA.GetGlobalTransaction().GetHash(), malleatedTransaction.GetHash());
+            await service.Broadcasted(new PendingTransactionService.PendingTransactionFullId("BTC", storeId, pendingA.Id), malleatedTransaction);
+
+            await using (var ctx = tester.CreateContext())
+            {
+                var reloadedPendingA = await ctx.PendingTransactions.SingleAsync(p => p.Id == pendingA.Id);
+                var reloadedPendingB = await ctx.PendingTransactions.SingleAsync(p => p.Id == pendingB.Id);
+                Assert.Equal(PendingTransactionState.Broadcast, reloadedPendingA.State);
+                Assert.Equal(PendingTransactionState.Pending, reloadedPendingB.State);
+            }
+        }
+
+        private static PSBT CreatePendingTransactionPSBT(Network network, uint prevTxNonce, Money amount)
+        {
+            var tx = Transaction.Create(network);
+            tx.Version = 2;
+            tx.LockTime = LockTime.Zero;
+            tx.Inputs.Add(new TxIn(new OutPoint(uint256.Parse($"{prevTxNonce:x64}"), 0))
+            {
+                Sequence = Sequence.Final
+            });
+            tx.Outputs.Add(amount, new Key().GetScriptPubKey(ScriptPubKeyType.Legacy));
+            return PSBT.FromTransaction(tx, network);
+        }
+
+        [Fact]
         public async Task CanMigrateInvoiceAddresses()
         {
             var tester = CreateDBTester();
             await tester.MigrateUntil("20240919085726_refactorinvoiceaddress");
-            using var ctx = tester.CreateContext();
+            await using var ctx = tester.CreateContext();
             var conn = ctx.Database.GetDbConnection();
             await conn.ExecuteAsync("INSERT INTO \"Invoices\" (\"Id\", \"Created\") VALUES ('i', NOW())");
             await conn.ExecuteAsync(
                 "INSERT INTO \"AddressInvoices\" VALUES ('aaa#BTC', 'i'),('bbb','i'),('ccc#BTC_LNU', 'i'),('ddd#XMR_MoneroLike', 'i'),('eee#ZEC_ZcashLike', 'i')");
-            await tester.ContinueMigration();
+            await tester.CompleteMigrations();
             foreach (var v in new[] { ("aaa", "BTC-CHAIN"), ("bbb", "BTC-CHAIN"), ("ddd", "XMR-CHAIN") , ("eee", "ZEC-CHAIN") })
             {
                 var ok = await conn.ExecuteScalarAsync<bool>("SELECT 't'::BOOLEAN FROM \"AddressInvoices\" WHERE \"Address\"=@a AND \"PaymentMethodId\"=@b", new { a = v.Item1, b = v.Item2 });
@@ -144,74 +223,6 @@ namespace BTCPayServer.Tests
             Assert.False(notok);
         }
 
-        [Fact]
-        public async Task CanMigratePayoutsAndPullPayments()
-        {
-            var tester = CreateDBTester();
-            await tester.MigrateUntil("20240827034505_migratepayouts");
 
-            using var ctx = tester.CreateContext();
-            var conn = ctx.Database.GetDbConnection();
-            await conn.ExecuteAsync("INSERT INTO \"Stores\"(\"Id\", \"SpeedPolicy\") VALUES (@store, 0)", new { store = "store1" });
-            var param = new
-            {
-                Id = "pp1",
-                StoreId = "store1",
-                Blob = "{\"Name\": \"CoinLottery\", \"View\": {\"Email\": null, \"Title\": \"\", \"Description\": \"\", \"EmbeddedCSS\": null, \"CustomCSSLink\": null}, \"Limit\": \"10.00\", \"Period\": null, \"Currency\": \"GBP\", \"Description\": \"\", \"Divisibility\": 0, \"MinimumClaim\": \"0\", \"AutoApproveClaims\": false, \"SupportedPaymentMethods\": [\"BTC\", \"BTC_LightningLike\"]}"
-            };
-            await conn.ExecuteAsync("INSERT INTO \"PullPayments\"(\"Id\", \"StoreId\", \"Blob\", \"StartDate\", \"Archived\") VALUES (@Id, @StoreId, @Blob::JSONB, NOW(), 'f')", param);
-            var parameters = new[]
-            {
-                new
-                {
-                    Id = "p1",
-                    StoreId = "store1",
-                    PullPaymentDataId = "pp1",
-                    PaymentMethodId = "BTC",
-                    Blob = "{\"Amount\": \"10.0\", \"Revision\": 0, \"Destination\": \"address\", \"CryptoAmount\": \"0.00012225\", \"MinimumConfirmation\": 1}"
-                },
-                new
-                {
-                    Id = "p2",
-                    StoreId = "store1",
-                    PullPaymentDataId = "pp1",
-                    PaymentMethodId = "BTC_LightningLike",
-                    Blob = "{\"Amount\": \"10.0\", \"Revision\": 0, \"Destination\": \"address\", \"CryptoAmount\": null, \"MinimumConfirmation\": 1}"
-                },
-                new
-                {
-                    Id = "p3",
-                    StoreId = "store1",
-                    PullPaymentDataId = null as string,
-                    PaymentMethodId = "BTC_LightningLike",
-                    Blob = "{\"Amount\": \"10.0\", \"Revision\": 0, \"Destination\": \"address\", \"CryptoAmount\": null, \"MinimumConfirmation\": 1}"
-                },
-                new
-                {
-                    Id = "p4",
-                    StoreId = "store1",
-                    PullPaymentDataId = null as string,
-                    PaymentMethodId = "BTC_LightningLike",
-                    Blob = "{\"Amount\": \"-10.0\", \"Revision\": 0, \"Destination\": \"address\", \"CryptoAmount\": null, \"MinimumConfirmation\": 1}"
-                }
-            };
-            await conn.ExecuteAsync("INSERT INTO \"Payouts\"(\"Id\", \"StoreDataId\", \"PullPaymentDataId\", \"PaymentMethodId\", \"Blob\", \"State\", \"Date\") VALUES (@Id, @StoreId, @PullPaymentDataId, @PaymentMethodId, @Blob::JSONB, 'state', NOW())", parameters);
-            await tester.ContinueMigration();
-
-            var migrated = await conn.ExecuteScalarAsync<bool>("SELECT 't'::BOOLEAN FROM \"PullPayments\" WHERE \"Id\"='pp1' AND \"Limit\"=10.0 AND \"Currency\"='GBP' AND \"Blob\"->>'SupportedPayoutMethods'='[\"BTC-CHAIN\", \"BTC-LN\"]'");
-            Assert.True(migrated);
-
-            migrated = await conn.ExecuteScalarAsync<bool>("SELECT 't'::BOOLEAN FROM \"Payouts\" WHERE \"Id\"='p1' AND \"Amount\"= 0.00012225 AND \"OriginalAmount\"=10.0 AND \"OriginalCurrency\"='GBP' AND \"PayoutMethodId\"='BTC-CHAIN'");
-            Assert.True(migrated);
-
-            migrated = await conn.ExecuteScalarAsync<bool>("SELECT 't'::BOOLEAN FROM \"Payouts\" WHERE \"Id\"='p2' AND \"Amount\" IS NULL AND \"OriginalAmount\"=10.0 AND \"OriginalCurrency\"='GBP' AND \"PayoutMethodId\"='BTC-LN'");
-            Assert.True(migrated);
-
-            migrated = await conn.ExecuteScalarAsync<bool>("SELECT 't'::BOOLEAN FROM \"Payouts\" WHERE \"Id\"='p3' AND \"Amount\" IS NULL AND \"OriginalAmount\"=10.0 AND \"OriginalCurrency\"='BTC'");
-            Assert.True(migrated);
-
-            migrated = await conn.ExecuteScalarAsync<bool>("SELECT 't'::BOOLEAN FROM \"Payouts\" WHERE \"Id\"='p4' AND \"Amount\" IS NULL AND \"OriginalAmount\"=-10.0 AND \"OriginalCurrency\"='BTC' AND \"PayoutMethodId\"='TOPUP'");
-            Assert.True(migrated);
-        }
     }
 }

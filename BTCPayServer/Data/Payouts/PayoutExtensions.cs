@@ -1,10 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
-using BTCPayServer.Client.Models;
-using BTCPayServer.Payments;
 using BTCPayServer.Payouts;
 using BTCPayServer.Services;
 using Microsoft.EntityFrameworkCore;
@@ -51,7 +48,7 @@ namespace BTCPayServer.Data
         }
         public static void SetBlob(this PayoutData data, PayoutBlob blob, BTCPayNetworkJsonSerializerSettings serializers)
         {
-            data.Blob = JsonConvert.SerializeObject(blob, serializers.GetSerializer(data.GetPayoutMethodId())).ToString();
+            data.Blob = JsonConvert.SerializeObject(blob, serializers.GetSerializer(data.GetPayoutMethodId()));
         }
 
         public static JObject GetProofBlobJson(this PayoutData data)

@@ -5,7 +5,7 @@ using BTCPayServer.Abstractions.Extensions;
 using BTCPayServer.Client;
 using BTCPayServer.Client.Models;
 using BTCPayServer.Data;
-using BTCPayServer.Services.Mails;
+using BTCPayServer.Plugins.Emails.Services;
 using BTCPayServer.Services.Stores;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Cors;
@@ -16,7 +16,7 @@ namespace BTCPayServer.Controllers.GreenField
     [ApiController]
     [Authorize(AuthenticationSchemes = AuthenticationSchemes.Greenfield)]
     [EnableCors(CorsPolicies.All)]
-    public class GreenfieldStoreEmailController : Controller
+    public class GreenfieldStoreEmailController : ControllerBase
     {
         private readonly EmailSenderFactory _emailSenderFactory;
         private readonly StoreRepository _storeRepository;
@@ -27,71 +27,52 @@ namespace BTCPayServer.Controllers.GreenField
             _storeRepository = storeRepository;
         }
 
-        [Authorize(Policy = Policies.CanModifyStoreSettings, AuthenticationSchemes = AuthenticationSchemes.Greenfield)]
+        [Authorize(Policy = Policies.CanSendStoreEmail, AuthenticationSchemes = AuthenticationSchemes.Greenfield)]
         [HttpPost("~/api/v1/stores/{storeId}/email/send")]
         public async Task<IActionResult> SendEmailFromStore(string storeId,
             [FromBody] SendEmailRequest request)
         {
             var store = HttpContext.GetStoreData();
-            if (store == null)
-            {
-                return this.CreateAPIError(404, "store-not-found", "The store was not found");
-            }
             if (!MailboxAddressValidator.TryParse(request.Email, out var to))
             {
                 ModelState.AddModelError(nameof(request.Email), "Invalid email");
                 return this.CreateValidationError(ModelState);
             }
             var emailSender = await _emailSenderFactory.GetEmailSender(storeId);
-            if (emailSender is null)
-            {
-                return this.CreateAPIError(404, "smtp-not-configured", "Store does not have an SMTP server configured.");
-            }
             emailSender.SendEmail(to, request.Subject, request.Body);
             return Ok();
+        }
+
+
+        private EmailSettingsData ToApiModel(Data.StoreData data)
+        {
+            var storeEmailSettings = data.GetStoreBlob().EmailSettings ?? new();
+            return storeEmailSettings.ToData<EmailSettingsData>();
         }
 
         [Authorize(Policy = Policies.CanModifyStoreSettings, AuthenticationSchemes = AuthenticationSchemes.Greenfield)]
         [HttpGet("~/api/v1/stores/{storeId}/email")]
         public IActionResult GetStoreEmailSettings()
-        {
-
-            var store = HttpContext.GetStoreData();
-            return store == null ? StoreNotFound() : Ok(FromModel(store));
-        }
+        => Ok(ToApiModel(HttpContext.GetStoreData()));
 
         [Authorize(Policy = Policies.CanModifyStoreSettings, AuthenticationSchemes = AuthenticationSchemes.Greenfield)]
         [HttpPut("~/api/v1/stores/{storeId}/email")]
-        public async Task<IActionResult> UpdateStoreEmailSettings(string storeId, EmailSettings request)
+        public async Task<IActionResult> UpdateStoreEmailSettings(string storeId, EmailSettingsData request)
         {
-            var store = HttpContext.GetStoreData();
-            if (store == null)
-            {
-                return StoreNotFound();
-            }
+            if (!string.IsNullOrWhiteSpace(request.From) && !MailboxAddressValidator.IsMailboxAddress(request.From))
+                ModelState.AddModelError(nameof(request.From), "Invalid email address");
 
-            if (!string.IsNullOrEmpty(request.From) && !MailboxAddressValidator.IsMailboxAddress(request.From))
-            {
-                request.AddModelError(e => e.From,
-                    "Invalid email address", this);
+            if (!ModelState.IsValid)
                 return this.CreateValidationError(ModelState);
-            }
-            var blob = store.GetStoreBlob();
-            blob.EmailSettings = request;
-            if (store.SetStoreBlob(blob))
-            {
-                await _storeRepository.UpdateStore(store);
-            }
 
-            return Ok(FromModel(store));
-        }
-        private EmailSettings FromModel(Data.StoreData data)
-        {
-            return data.GetStoreBlob().EmailSettings ?? new();
-        }
-        private IActionResult StoreNotFound()
-        {
-            return this.CreateAPIError(404, "store-not-found", "The store was not found");
+            var store = HttpContext.GetStoreData();
+            var blob = store.GetStoreBlob();
+            var settings = EmailSettings.FromData(request, blob.EmailSettings?.Password);
+            blob.EmailSettings = settings;
+            if (store.SetStoreBlob(blob))
+                await _storeRepository.UpdateStore(store);
+
+            return Ok(ToApiModel(store));
         }
     }
 }

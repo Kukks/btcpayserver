@@ -2,9 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using BTCPayServer.Data;
 using BTCPayServer.Rating;
-using Newtonsoft.Json.Linq;
 
 namespace BTCPayServer;
 public record DefaultRules(RateRules Rules)
@@ -39,7 +37,6 @@ public class DefaultRulesCollection
         defaultRules = defaultRules.OrderBy(o => o.Order).ToList();
         Consolidated = RateRules.Combine(defaultRules.Select(r => r.Rules));
         ConsolidatedWithoutRecommendation = RateRules.Combine(defaultRules.Where(r => r is not DefaultRules.Recommendation).Select(r => r.Rules));
-        var rules = Consolidated.ToString();
 
         foreach (var recommendation in defaultRules.OfType<DefaultRules.Recommendation>())
         {
@@ -56,17 +53,22 @@ public class DefaultRulesCollection
         {
             return Consolidated;
         }
-        else
+
+        try
         {
             var catchAll = RateRules.Parse($"X_X = {preferredExchange}(X_X);");
             return RateRules.Combine([catchAll, ConsolidatedWithoutRecommendation]);
+        }
+        catch (FormatException)
+        {
+            return Consolidated;
         }
     }
 
     public Dictionary<string, string> RecommendedExchanges { get; } = new Dictionary<string, string>();
 
     public string GetRecommendedExchange(string currency) =>
-        RecommendedExchanges.TryGetValue(currency, out var ex) ? ex : "coingecko";
+        RecommendedExchanges.TryGetValue(currency, out var ex) ? ex : "kraken";
 
     public override string ToString() => Consolidated.ToString();
 }

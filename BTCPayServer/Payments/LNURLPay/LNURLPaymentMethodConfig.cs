@@ -1,6 +1,4 @@
 #nullable enable
-using System;
-using BTCPayServer.Lightning;
 using Newtonsoft.Json;
 
 namespace BTCPayServer.Payments.Lightning
@@ -12,6 +10,13 @@ namespace BTCPayServer.Payments.Lightning
 
         [JsonProperty("lud12Enabled")]
         public bool LUD12Enabled { get; set; } = true;
+
+        /// <summary>
+        /// LUD-21: LNURL-pay verify endpoint. Allows external services to verify
+        /// Lightning payment settlement without authentication.
+        /// </summary>
+        [JsonProperty("lud21Enabled")]
+        public bool LUD21Enabled { get; set; } = true;
 
     }
 }

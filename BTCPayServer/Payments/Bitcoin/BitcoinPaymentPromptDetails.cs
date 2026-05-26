@@ -1,6 +1,3 @@
-using System;
-using System.ComponentModel;
-using System.Linq;
 using BTCPayServer.Client.Models;
 using NBitcoin;
 using NBXplorer.DerivationStrategy;
@@ -35,6 +32,7 @@ namespace BTCPayServer.Payments.Bitcoin
         public FeeRate RecommendedFeeRate { get; set; }
         [JsonConverter(typeof(NBitcoin.JsonConverters.KeyPathJsonConverter))]
         public KeyPath KeyPath { get; set; }
+        public int KeyIndex { get; set; }
         public DerivationStrategyBase AccountDerivation { get; set; }
     }
 }

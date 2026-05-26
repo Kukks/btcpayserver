@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
 using BTCPayServer.Services.Rates;
 
 namespace BTCPayServer.Rating
@@ -38,8 +37,6 @@ namespace BTCPayServer.Rating
             ArgumentNullException.ThrowIfNull(str);
             value = null;
             str = str.Trim();
-            if (str.Length > 12)
-                return false;
             var splitted = str.Split(new[] { '_', '-' }, StringSplitOptions.RemoveEmptyEntries);
             if (splitted.Length == 2)
             {

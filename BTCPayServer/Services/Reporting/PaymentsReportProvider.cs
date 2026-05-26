@@ -1,15 +1,10 @@
-using System;
 using System.Threading;
 using System.Threading.Tasks;
-using BTCPayServer.Client.Models;
 using BTCPayServer.Data;
 using BTCPayServer.Payments;
 using BTCPayServer.Payments.Bitcoin;
 using BTCPayServer.Payments.Lightning;
 using BTCPayServer.Services.Invoices;
-using Dapper;
-using Microsoft.EntityFrameworkCore;
-using static BTCPayServer.Client.Models.InvoicePaymentMethodDataModel;
 
 namespace BTCPayServer.Services.Reporting;
 
@@ -57,7 +52,7 @@ public class PaymentsReportProvider : ReportProvider
                 new ("InvoiceCurrencyAmount", "amount"),
                 new ("Rate", "amount")
             },
-            Charts = 
+            Charts =
             {
                 new ()
                 {
@@ -99,7 +94,6 @@ public class PaymentsReportProvider : ReportProvider
     {
         queryContext.ViewDefinition = CreateViewDefinition();
         await using var ctx = DbContextFactory.CreateContext();
-        var conn = ctx.Database.GetDbConnection();
         var invoices = await InvoiceRepository.GetInvoices(new InvoiceQuery()
         {
             StoreId = [queryContext.StoreId],
@@ -107,7 +101,7 @@ public class PaymentsReportProvider : ReportProvider
             EndDate = queryContext.To,
             OrderByDesc = false,
         }, cancellation);
-        
+
         foreach (var invoice in invoices)
         {
             foreach (var payment in invoice.GetPayments(true))

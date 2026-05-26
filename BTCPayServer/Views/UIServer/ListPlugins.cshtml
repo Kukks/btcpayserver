@@ -5,15 +5,14 @@
 @inject PluginService PluginService
 @{
     Layout = "_Layout";
-    ViewData.SetActivePage(ServerNavPages.Plugins);
-    var installed = Model.Installed.ToDictionary(plugin => plugin.Identifier, plugin => plugin.Version);
-    var installedWithoutSystemPlugins = Model.Installed.Where(i => !i.SystemPlugin).ToList();
+    ViewData.SetLayoutModel(new LayoutModel(nameof(ServerNavPages.Plugins), StringLocalizer["Plugins"]));
+    var installed = Model.Installed;
     var availableAndNotInstalled = new List<PluginService.AvailablePlugin>();
     var availableAndNotInstalledx = Model.Available
         .Where(plugin => !installed.ContainsKey(plugin.Identifier))
         .GroupBy(plugin => plugin.Identifier)
         .ToList();
-    
+
     foreach (var availableAndNotInstalledItem in availableAndNotInstalledx)
     {
         var ordered = availableAndNotInstalledItem.OrderByDescending(plugin => plugin.Version).ToArray();
@@ -22,7 +21,7 @@
 
     bool DependentOn(string plugin)
     {
-        foreach (var installedPlugin in Model.Installed)
+        foreach (var installedPlugin in Model.Plugins)
         {
             if (installedPlugin.Dependencies.Any(dep => dep.Identifier.Equals(plugin, StringComparison.InvariantCultureIgnoreCase)))
             {
@@ -54,7 +53,7 @@
     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="@StringLocalizer["Close"]">
         <vc:icon symbol="close" />
     </button>
-    <h5 class="alert-heading" text-translate="true">Important notice about plugins</h5> 
+    <h5 class="alert-heading" text-translate="true">Important notice about plugins</h5>
     <p class="mb-0">
         <span text-translate="true">Plugins are developed by third parties. They need to be updated and maintained regularly in addition to BTCPay Server. Use plugins at your own risk.</span>
         <a href="#warning-details" data-bs-toggle="collapse" class="alert-link" text-translate="true">Read more</a>
@@ -103,18 +102,51 @@
                             }
                         </span>
 						@{
-							var uninstalled = Model.Commands.Any(c => c.plugin == plugin && c.command == "delete");
+							var uninstalled = Model.Commands.Any(c => c.plugin.Equals(plugin, StringComparison.InvariantCultureIgnoreCase) && c.command == "delete");
+                            var enabled = Model.Commands.Any(c => c.plugin.Equals(plugin, StringComparison.InvariantCultureIgnoreCase) && c.command == "enable");
+                            var pendingInstall = Model.Commands.Any(c => c.plugin.Equals(plugin, StringComparison.InvariantCultureIgnoreCase) && c.command == "install");
+                            Model.DisabledPluginUpdates.TryGetValue(plugin, out var recommendedUpdate);
 						}
-						<form asp-action="UnInstallPlugin" asp-route-plugin="@plugin">
-							@if (uninstalled)
-							{
-								<button type="submit" class="btn btn-sm btn-outline-danger" disabled text-translate="true">Marked for deletion</button>
-							}
-							else
-							{
-								<button type="submit" class="btn btn-sm btn-outline-danger" text-translate="true">Uninstall</button>
-							}
-						</form>
+                        <div class="d-flex gap-2">
+                            @if (pendingInstall)
+                            {
+                                <button type="button" class="btn btn-sm btn-outline-primary" disabled text-translate="true">Marked for update</button>
+                            }
+                            else if (recommendedUpdate != null && !uninstalled && !enabled)
+                            {
+                                <form asp-action="InstallPlugin" asp-route-plugin="@plugin" asp-route-version="@recommendedUpdate.Version">
+                                    @if (PluginManager.DependenciesMet(recommendedUpdate.Dependencies, installed))
+                                    {
+                                        <button type="submit" class="btn btn-sm btn-primary" text-translate="true">Update</button>
+                                    }
+                                    else
+                                    {
+                                        <button title="Schedule upgrade for when the dependencies have been met to ensure a smooth update" data-bs-toggle="tooltip" type="submit" class="btn btn-sm btn-primary" text-translate="true">Schedule update</button>
+                                    }
+                                </form>
+                            }
+                            <form asp-action="EnablePlugin" asp-route-plugin="@plugin">
+							    @if (enabled)
+							    {
+								    <button type="submit" class="btn btn-sm btn-outline-primary" disabled text-translate="true">Marked for enabling</button>
+							    }
+							    else if (!uninstalled && !pendingInstall)
+							    {
+								    <button type="submit" class="btn btn-sm btn-outline-primary" text-translate="true">Enable</button>
+							    }
+						    </form>
+
+                            <form asp-action="UnInstallPlugin" asp-route-plugin="@plugin">
+                                @if (uninstalled)
+                                {
+                                    <button type="submit" class="btn btn-sm btn-outline-danger" disabled text-translate="true">Marked for deletion</button>
+                                }
+                                else if (!enabled && !pendingInstall)
+                                {
+                                    <button type="submit" class="btn btn-sm btn-outline-danger" text-translate="true">Uninstall</button>
+                                }
+                            </form>
+                        </div>
                     </div>
                 </li>
             }
@@ -122,11 +154,12 @@
     </div>
 }
 
-@if (Model.Installed.Any())
+<div id="plugins-installed"></div>
+@if (Model.Plugins.Any())
 {
-    <h3 class="mb-4">Installed Plugins</h3>
+    <h3 class="mb-4" text-translate="true">Installed Plugins</h3>
     <div class="row mb-4">
-        @foreach (var plugin in Model.Installed.Where(i => !i.SystemPlugin))
+        @foreach (var plugin in Model.Plugins.Where(i => !i.SystemPlugin))
         {
             Model.DownloadedPluginsByIdentifier.TryGetValue(plugin.Identifier, out var downloadInfo);
             var matchedAvailable = Model.Available.Where(availablePlugin => availablePlugin.Identifier == plugin.Identifier && availablePlugin.Version > plugin.Version).OrderByDescending(availablePlugin => availablePlugin.Version).ToArray();
@@ -253,7 +286,7 @@
                     @{
                         var pendingAction = Model.Commands.LastOrDefault(tuple => tuple.plugin.Equals(plugin.Identifier, StringComparison.InvariantCultureIgnoreCase)).command;
                         var exclusivePendingAction = true;
-                        
+
                         var versionOfPendingInstall = PluginService.GetVersionOfPendingInstall(plugin.Identifier);
                     }
                     <div class="card-footer border-0 pb-3 d-flex gap-2">
@@ -277,20 +310,22 @@
                             {
                                 if (PluginManager.DependenciesMet(x.Dependencies, installed))
                                 {
-                                    <form asp-action="InstallPlugin" asp-route-plugin="@plugin.Identifier" asp-route-version="@x.Version" asp-route-update="true" class="me-3">
+                                    <form asp-action="InstallPlugin" asp-route-plugin="@plugin.Identifier" asp-route-version="@x.Version" class="me-3">
                                         <button type="submit" class="btn btn-secondary" text-translate="true">Update</button>
                                     </form>
                                 }
                                 else
                                 {
-                                    <form asp-action="InstallPlugin" asp-route-plugin="@plugin.Identifier" asp-route-version="@x.Version" asp-route-update="true" class="me-3">
+                                    <form asp-action="InstallPlugin" asp-route-plugin="@plugin.Identifier" asp-route-version="@x.Version" class="me-3">
                                         <button title="Schedule upgrade for when the dependencies have been met to ensure a smooth update" data-bs-toggle="tooltip" type="submit" class="btn btn-secondary" text-translate="true">Schedule update</button>
                                     </form>
                                 }
                             }
+                            
+                            
                             @if (DependentOn(plugin.Identifier))
                             {
-                                <button type="button" class="btn btn-outline-danger" data-bs-toggle="tooltip" title="This plugin cannot be uninstalled as it is depended on by other plugins.">
+                                <button type="button" class="btn btn-outline-danger d-flex align-items-center gap-3" data-bs-toggle="tooltip" title="This plugin cannot be uninstalled as it is depended on by other plugins.">
                                     <span text-translate="true">Uninstall</span>
                                     <vc:icon symbol="warning"/>
                                 </button>
@@ -341,15 +376,16 @@
 
 </script>
 
+<div id="plugins-directory"></div>
 @if (!availableAndNotInstalled.Any())
 {
     <div class="row mb-4">
         <div class="col mb-4" style="margin-left:10px;" text-translate="true">No plugins found</div>
     </div>
 }
-else 
+else
 {
-    <h3 class="mb-4">Available Plugins</h3>
+    <h3 class="mb-4" text-translate="true">Available Plugins</h3>
     <div class="row mb-4">
         @foreach (var plugin in availableAndNotInstalled)
         {
@@ -474,7 +510,7 @@ else
                                 }
                                 else if (disabled != plugin.Version)
                                 {
-                                    <form asp-action="InstallPlugin" asp-route-plugin="@plugin.Identifier" asp-route-version="@plugin.Version" asp-route-update="true">
+                                    <form asp-action="InstallPlugin" asp-route-plugin="@plugin.Identifier" asp-route-version="@plugin.Version">
                                         <button type="submit" class="btn btn-primary" text-translate="true">Update</button>
                                     </form>
                                 }
@@ -526,15 +562,15 @@ else
 @if (Model.Commands.Any())
 {
     <div class="mb-4">
-        <h3 class="mb-4">Pending Action</h3>
-        <button class="btn btn-secondary mb-4" type="button" data-bs-toggle="collapse" data-bs-target="#pending-actions">
+        <h3 class="mb-4" text-translate="true">Pending Action</h3>
+        <button class="btn btn-secondary mb-4" type="button" data-bs-toggle="collapse" data-bs-target="#pending-actions" text-translate="true">
             Pending Actions
         </button>
         <div class="row collapse" id="pending-actions">
             <div class="col col-12 col-lg-6 mb-4">
                 <div class="card">
                     <div class="card-body">
-                        <h4 class="card-title">Pending actions</h4>
+                        <h4 class="card-title" text-translate="true">Pending actions</h4>
                         <ul class="list-group list-group-flush">
                             @foreach (var extComm in Model.Commands.GroupBy(tuple => tuple.plugin))
                             {

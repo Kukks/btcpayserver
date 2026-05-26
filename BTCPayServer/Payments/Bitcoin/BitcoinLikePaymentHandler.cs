@@ -1,30 +1,17 @@
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
-using AngleSharp.Dom;
-using BTCPayServer.Abstractions.Extensions;
-using BTCPayServer.BIP78.Sender;
 using BTCPayServer.Client.Models;
 using BTCPayServer.Data;
 using BTCPayServer.HostedServices;
-using BTCPayServer.Lightning;
-using BTCPayServer.Logging;
-using BTCPayServer.Models;
-using BTCPayServer.Models.InvoicingModels;
 using BTCPayServer.Plugins.Altcoins;
 using BTCPayServer.Services;
-using BTCPayServer.Services.Invoices;
 using NBitcoin;
-using NBitcoin.DataEncoders;
-using NBitpayClient;
 using NBXplorer.DerivationStrategy;
 using NBXplorer.Models;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
-using static Org.BouncyCastle.Math.EC.ECCurve;
-using StoreData = BTCPayServer.Data.StoreData;
 
 namespace BTCPayServer.Payments.Bitcoin
 {
@@ -190,6 +177,7 @@ namespace BTCPayServer.Payments.Bitcoin
             paymentMethod.Destination = reserved.Address.ToString();
             paymentContext.TrackedDestinations.Add(Network.GetTrackedDestination(reserved.Address.ScriptPubKey));
             onchainMethod.KeyPath = reserved.KeyPath;
+            onchainMethod.KeyIndex = reserved.Index ?? (int)reserved.KeyPath.Indexes.Last();
             onchainMethod.AccountDerivation = accountDerivation;
             onchainMethod.PayjoinEnabled = blob.PayJoinEnabled &&
                                            accountDerivation.ScriptPubKeyType() != ScriptPubKeyType.Legacy &&
@@ -261,7 +249,7 @@ namespace BTCPayServer.Payments.Bitcoin
         public Task ValidatePaymentMethodConfig(PaymentMethodConfigValidationContext validationContext)
         {
             var parser = Network.GetDerivationSchemeParser();
-            DerivationSchemeSettings settings = new DerivationSchemeSettings();
+            var settings = new DerivationSchemeSettings();
             if (validationContext.Config is JValue { Type: JTokenType.String, Value: string config }
                 && parser.TryParseXpub(config, ref settings))
             {
@@ -287,17 +275,15 @@ namespace BTCPayServer.Payments.Bitcoin
             {
                 validationContext.ModelState.AddModelError(nameof(res.AccountDerivation), "Invalid account derivation");
             }
-            if (res.AccountKeySettings is null)
+            if (res.AccountKeySettings is null || res.AccountKeySettings.Length == 0)
             {
                 validationContext.ModelState.AddModelError(nameof(res.AccountKeySettings), "Invalid AccountKeySettings");
             }
-            if (res.SigningKey is null)
+
+            foreach (var acc in  res.AccountKeySettings ?? [])
             {
-                validationContext.ModelState.AddModelError(nameof(res.SigningKey), "Invalid SigningKey");
-            }
-            if (res.GetSigningAccountKeySettingsOrDefault() is null)
-            {
-                validationContext.ModelState.AddModelError(nameof(res.AccountKeySettings), "AccountKeySettings doesn't include the SigningKey");
+                if (acc.AccountKey is null)
+                    validationContext.ModelState.AddModelError(nameof(res.AccountKeySettings), "Missing AccountKey");
             }
             return Task.CompletedTask;
         }

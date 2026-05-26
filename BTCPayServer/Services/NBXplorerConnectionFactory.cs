@@ -4,7 +4,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using BTCPayServer.Configuration;
 using BTCPayServer.Logging;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -41,7 +40,7 @@ namespace BTCPayServer.Services
             }
         }
 
-        public async Task<DbConnection> OpenConnection()
+        public virtual async Task<DbConnection> OpenConnection()
         {
             int maxRetries = 10;
             int retries = maxRetries;

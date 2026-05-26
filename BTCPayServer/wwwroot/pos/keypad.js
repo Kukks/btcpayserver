@@ -1,4 +1,5 @@
 document.addEventListener("DOMContentLoaded",function () {
+
     const displayFontSize = 64;
     new Vue({
         el: '#app',
@@ -30,15 +31,26 @@ document.addEventListener("DOMContentLoaded",function () {
                 }
             },
             calculation () {
-                if (!this.tipNumeric && !(this.discountNumeric > 0 || this.discountPercentNumeric > 0) && this.amounts.length < 2 && this.cart.length === 0) return null
+                if (!this.tipNumeric && !(this.discountNumeric > 0 || this.discountPercentNumeric > 0 || this.summary.tax > 0) && this.amounts.length < 2 && this.cart.length === 0) return null
                 let calc = ''
                 const hasAmounts = this.amounts.length && this.amounts.reduce((sum, amt) => sum + parseFloat(amt || 0), 0) > 0;
                 if (this.cart.length) calc += this.cart.map(item => `${item.count} x ${item.title} (${this.formatCurrency(item.price, true)}) = ${this.formatCurrency((item.price||0) * item.count, true)}`).join(' + ')
                 if (this.cart.length && hasAmounts) calc += ' + '
                 if (hasAmounts) calc += this.amounts.map(amt => this.formatCurrency(amt || 0, true)).join(' + ')
                 if (this.discountNumeric > 0 || this.discountPercentNumeric > 0) calc += ` - ${this.formatCurrency(this.discountNumeric, true)} (${this.discountPercent}%)`
-                if (this.tipNumeric > 0) calc += ` + ${this.formatCurrency(this.tipNumeric, true)}`
+                if (this.summary.tip > 0) calc += ` + ${this.formatCurrency(this.summary.tip, true)}`
                 if (this.tipPercent) calc += ` (${this.tipPercent}%)`
+                if (this.summary.tax)
+                {
+                    if (this.taxIncludedInPrice) {
+                        const rateLabel = this.posOrder.getTaxRate() ? ` ${this.posOrder.getTaxRate()}%` : ''
+                        calc += ` (incl. ${this.formatCurrency(this.summary.tax, true)} tax${rateLabel})`
+                    } else {
+                        calc += ` + ${this.formatCurrency(this.summary.tax, true)}`
+                        if (this.posOrder.getTaxRate())
+                            calc += ` (${this.posOrder.getTaxRate()}% tax)`
+                    }
+                }
                 return calc
             }
         },
@@ -119,6 +131,13 @@ document.addEventListener("DOMContentLoaded",function () {
                     this.clearKeypad();
                 }
             }
+        },
+        mounted() {
+            // Initialize Bootstrap tooltips for disabled items
+            const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+            tooltipTriggerList.map(function (tooltipTriggerEl) {
+                return new bootstrap.Tooltip(tooltipTriggerEl)
+            })
         },
         created() {
             // We need to unset state in case user clicks the browser back button

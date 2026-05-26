@@ -10,8 +10,7 @@ using BTCPayServer.Data;
 using BTCPayServer.Events;
 using BTCPayServer.Lightning;
 using BTCPayServer.Logging;
-using BTCPayServer.Models.WalletViewModels;
-using BTCPayServer.Payments;
+using BTCPayServer.Plugins.Wallets.Views.ViewModels;
 using BTCPayServer.Payouts;
 using BTCPayServer.Rating;
 using BTCPayServer.Services;
@@ -19,13 +18,11 @@ using BTCPayServer.Services.Invoices;
 using BTCPayServer.Services.Notifications;
 using BTCPayServer.Services.Notifications.Blobs;
 using BTCPayServer.Services.Rates;
-using Dapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using NBitcoin;
 using NBitcoin.DataEncoders;
 using NBXplorer;
-using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using PayoutData = BTCPayServer.Data.PayoutData;
 using PullPaymentData = BTCPayServer.Data.PullPaymentData;
@@ -33,20 +30,6 @@ using PullPaymentData = BTCPayServer.Data.PullPaymentData;
 
 namespace BTCPayServer.HostedServices
 {
-    public class CreatePullPayment
-    {
-        public DateTimeOffset? ExpiresAt { get; set; }
-        public DateTimeOffset? StartsAt { get; set; }
-        public string StoreId { get; set; }
-        public string Name { get; set; }
-        public string Description { get; set; }
-        public decimal Amount { get; set; }
-        public string Currency { get; set; }
-        public PayoutMethodId[] PayoutMethods { get; set; }
-        public bool AutoApproveClaims { get; set; }
-        public TimeSpan? BOLT11Expiration { get; set; }
-    }
-
     public class PullPaymentHostedService : BaseAsyncService
     {
         private readonly string[] _lnurlSupportedCurrencies = { "BTC", "SATS" };
@@ -110,26 +93,14 @@ namespace BTCPayServer.HostedServices
                 }
             }
         }
-        public Task<string> CreatePullPayment(string storeId, CreatePullPaymentRequest request)
+        public async Task<string> CreatePullPayment(Data.StoreData store, CreatePullPaymentRequest create)
         {
-            if (request.PayoutMethods.Length == 0)
+            var supported = this._handlers.GetSupportedPayoutMethods(store);
+            create.PayoutMethods ??= supported.Select(s => s.ToString()).ToArray();
+            create.PayoutMethods = create.PayoutMethods.Where(pm => _handlers.Support(PayoutMethodId.Parse(pm))).ToArray();
+            if (create.PayoutMethods.Length == 0)
                 throw new InvalidOperationException("request.PayoutMethods should have at least one payout method");
-            return CreatePullPayment(new CreatePullPayment()
-            {
-                StartsAt = request.StartsAt,
-                ExpiresAt = request.ExpiresAt,
-                BOLT11Expiration = request.BOLT11Expiration,
-                Name = request.Name,
-                Description = request.Description,
-                Amount = request.Amount,
-                Currency = request.Currency,
-                StoreId = storeId,
-                PayoutMethods = request.PayoutMethods.Select(p => PayoutMethodId.Parse(p)).ToArray(),
-                AutoApproveClaims = request.AutoApproveClaims
-            });
-        }
-        public async Task<string> CreatePullPayment(CreatePullPayment create)
-        {
+
             ArgumentNullException.ThrowIfNull(create);
             if (create.Amount <= 0.0m)
                 throw new ArgumentException("Amount out of bound", nameof(create));
@@ -140,7 +111,7 @@ namespace BTCPayServer.HostedServices
                 : DateTimeOffset.UtcNow - TimeSpan.FromSeconds(1.0);
             o.EndDate = create.ExpiresAt is DateTimeOffset date2 ? new DateTimeOffset?(date2) : null;
             o.Id = Encoders.Base58.EncodeData(RandomUtils.GetBytes(20));
-            o.StoreId = create.StoreId;
+            o.StoreId = store.Id;
             o.Currency = create.Currency;
             o.Limit = create.Amount;
 
@@ -148,7 +119,7 @@ namespace BTCPayServer.HostedServices
             {
                 Name = create.Name ?? string.Empty,
                 Description = create.Description ?? string.Empty,
-                SupportedPayoutMethods = create.PayoutMethods,
+                SupportedPayoutMethods = create.PayoutMethods.Select(p => PayoutMethodId.Parse(p)).ToArray(),
                 AutoApproveClaims = create.AutoApproveClaims,
                 View = new PullPaymentBlob.PullPaymentView
                 {
@@ -156,7 +127,7 @@ namespace BTCPayServer.HostedServices
                     Description = create.Description ?? string.Empty,
                     Email = null
                 },
-                BOLT11Expiration = create.BOLT11Expiration ?? TimeSpan.FromDays(30.0)
+                BOLT11Expiration = create.BOLT11Expiration ?? store.GetStoreBlob().RefundBOLT11Expiration
             });
             ctx.PullPayments.Add(o);
             await ctx.SaveChangesAsync();
@@ -455,9 +426,11 @@ namespace BTCPayServer.HostedServices
 
         public bool SupportsLNURL(PullPaymentData pp, PullPaymentBlob blob = null)
         {
+            var cryptoCode = _networkProvider.DefaultNetwork?.CryptoCode;
+            if (cryptoCode is null) return false;
             blob ??= pp.GetBlob();
             var pms = blob.SupportedPayoutMethods.FirstOrDefault(id =>
-                PayoutTypes.LN.GetPayoutMethodId(_networkProvider.DefaultNetwork.CryptoCode)
+                PayoutTypes.LN.GetPayoutMethodId(cryptoCode)
                 == id);
             return pms is not null && _lnurlSupportedCurrencies.Contains(pp.Currency);
         }
@@ -468,19 +441,19 @@ namespace BTCPayServer.HostedServices
             var cryptoCode = _handlers.TryGetNetwork(payoutPaymentMethod)?.NBXplorerNetwork.CryptoCode;
             var currencyPair = new Rating.CurrencyPair(cryptoCode,
                 payout.PullPaymentData?.Currency ?? cryptoCode);
-            Rating.RateRule rule = null;
+            Rating.RateRuleCollection rule = null;
             try
             {
                 if (explicitRateRule is null)
                 {
                     var storeBlob = payout.StoreData.GetStoreBlob();
                     var rules = storeBlob.GetRateRules(_defaultRules);
-                    rules.Spread = 0.0m;
+                    storeBlob.Spread = 0.0m;
                     rule = rules.GetRuleFor(currencyPair);
                 }
                 else
                 {
-                    rule = Rating.RateRule.CreateFromExpression(explicitRateRule, currencyPair);
+                    rule = new RateRuleCollection(Rating.RateRule.CreateFromExpression(explicitRateRule, currencyPair), null);
                 }
             }
             catch (Exception)
@@ -981,13 +954,13 @@ namespace BTCPayServer.HostedServices
             public record Error(string Message) : ClaimedAmountResult;
             public record Success(decimal? Amount) : ClaimedAmountResult;
         }
-        
-        
+
+
         public static ClaimedAmountResult GetClaimedAmount(IClaimDestination destination, decimal? amount, string payoutCurrency, string ppCurrency)
         {
             var amountsComparable = false;
             var destinationAmount = destination.Amount;
-            if (destinationAmount is not null && 
+            if (destinationAmount is not null &&
                 payoutCurrency == "BTC" &&
                 ppCurrency == "SATS")
             {
@@ -1008,7 +981,7 @@ namespace BTCPayServer.HostedServices
                 ({ } a, { } b) when amountsComparable && a == b => new ClaimedAmountResult.Success(a),
                 ({ } a, { } b) when amountsComparable && a > b => new ClaimedAmountResult.Error($"The destination's amount ({a} {ppCurrency}) is more than the claimed amount ({b} {ppCurrency})."),
                 ({ } a, { } b) when amountsComparable && a < b => new ClaimedAmountResult.Success(a),
-                ({ } a, { } b) when !amountsComparable => new ClaimedAmountResult.Success(b),
+                (not null, { } b) when !amountsComparable => new ClaimedAmountResult.Success(b),
                 _ => new ClaimedAmountResult.Success(amount)
             };
         }
@@ -1082,5 +1055,7 @@ namespace BTCPayServer.HostedServices
             Approved,
             Updated
         }
+
+        public override string ToString() => $"Payout Event for {Payout.Id} ({Type})";
     }
 }

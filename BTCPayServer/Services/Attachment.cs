@@ -1,8 +1,6 @@
 #nullable enable
 using System.Collections.Generic;
-using BTCPayServer.Client.Models;
 using BTCPayServer.Data;
-using BTCPayServer.Services.Labels;
 using Newtonsoft.Json.Linq;
 
 namespace BTCPayServer.Services
@@ -12,12 +10,13 @@ namespace BTCPayServer.Services
         public string Type { get; }
         public string Id { get; }
         public JObject? Data { get; }
-
-        public Attachment(string type, string? id = null, JObject? data = null)
+        public JObject? LinkData { get; }
+        public Attachment(string type, string? id = null, JObject? data = null, JObject? linkData = null)
         {
             Type = type;
             Id = id ?? string.Empty;
             Data = data;
+            LinkData = linkData;
         }
         public static Attachment Payjoin()
         {
@@ -30,6 +29,10 @@ namespace BTCPayServer.Services
         public static Attachment PaymentRequest(string paymentRequestId)
         {
             return new Attachment(WalletObjectData.Types.PaymentRequest, paymentRequestId);
+        }
+        public static Attachment PaymentRequest(string paymentRequestId, JObject? data)
+        {
+            return new Attachment(WalletObjectData.Types.PaymentRequest, paymentRequestId, data);
         }
         public static Attachment App(string appId)
         {

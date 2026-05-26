@@ -5,19 +5,15 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using BTCPayServer.Abstractions.Contracts;
 using BTCPayServer.Abstractions.Extensions;
 using BTCPayServer.Client.Models;
 using BTCPayServer.Services;
 using BTCPayServer.Data;
 using BTCPayServer.Events;
 using BTCPayServer.HostedServices;
-using BTCPayServer.HostedServices.Webhooks;
 using BTCPayServer.Logging;
 using BTCPayServer.Payments;
-using BTCPayServer.Payments.Bitcoin;
 using BTCPayServer.Rating;
-using BTCPayServer.Security;
 using BTCPayServer.Security.Greenfield;
 using BTCPayServer.Services.Apps;
 using BTCPayServer.Services.Invoices;
@@ -26,26 +22,22 @@ using BTCPayServer.Services.Rates;
 using BTCPayServer.Services.Stores;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
-using NBitcoin;
 using Newtonsoft.Json.Linq;
 using StoreData = BTCPayServer.Data.StoreData;
-using Serilog.Filters;
 using BTCPayServer.Payouts;
+using BTCPayServer.Plugins.Webhooks;
+using Microsoft.AspNetCore.Mvc.Localization;
 using Microsoft.Extensions.Localization;
 
 namespace BTCPayServer.Controllers
 {
-    [Filters.BitpayAPIConstraint(false)]
     public partial class UIInvoiceController : Controller
     {
         readonly InvoiceRepository _InvoiceRepository;
-        private readonly WalletRepository _walletRepository;
         readonly RateFetcher _RateProvider;
         readonly StoreRepository _StoreRepository;
-        readonly UserManager<ApplicationUser> _UserManager;
         private readonly CurrencyNameTable _CurrencyNameTable;
         private readonly DisplayFormatter _displayFormatter;
         readonly EventAggregator _EventAggregator;
@@ -57,7 +49,6 @@ namespace BTCPayServer.Controllers
         private readonly PullPaymentHostedService _paymentHostedService;
         private readonly LanguageService _languageService;
         private readonly ExplorerClientProvider _ExplorerClients;
-        private readonly UIWalletsController _walletsController;
         private readonly InvoiceActivator _invoiceActivator;
         private readonly LinkGenerator _linkGenerator;
         private readonly IAuthorizationService _authorizationService;
@@ -65,23 +56,21 @@ namespace BTCPayServer.Controllers
         private readonly Dictionary<PaymentMethodId, ICheckoutModelExtension> _paymentModelExtensions;
         private readonly PrettyNameProvider _prettyName;
         private readonly AppService _appService;
-        private readonly IFileService _fileService;
         private readonly UriResolver _uriResolver;
+        private readonly PermissionService _permissionService;
 
         public WebhookSender WebhookNotificationManager { get; }
         public IEnumerable<IGlobalCheckoutModelExtension> GlobalCheckoutModelExtensions { get; }
         public IStringLocalizer StringLocalizer { get; }
+        public ViewLocalizer ViewLocalizer { get; }
 
         public UIInvoiceController(
             InvoiceRepository invoiceRepository,
-            WalletRepository walletRepository,
             DisplayFormatter displayFormatter,
             CurrencyNameTable currencyNameTable,
-            UserManager<ApplicationUser> userManager,
             RateFetcher rateProvider,
             StoreRepository storeRepository,
             EventAggregator eventAggregator,
-            ContentSecurityPolicies csp,
             BTCPayNetworkProvider networkProvider,
             PayoutMethodHandlerDictionary payoutHandlers,
             PaymentMethodHandlerDictionary paymentMethodHandlerDictionary,
@@ -90,11 +79,9 @@ namespace BTCPayServer.Controllers
             WebhookSender webhookNotificationManager,
             LanguageService languageService,
             ExplorerClientProvider explorerClients,
-            UIWalletsController walletsController,
             InvoiceActivator invoiceActivator,
             LinkGenerator linkGenerator,
             AppService appService,
-            IFileService fileService,
             UriResolver uriResolver,
             DefaultRulesCollection defaultRules,
             IAuthorizationService authorizationService,
@@ -102,15 +89,15 @@ namespace BTCPayServer.Controllers
             Dictionary<PaymentMethodId, ICheckoutModelExtension> paymentModelExtensions,
             IEnumerable<IGlobalCheckoutModelExtension> globalCheckoutModelExtensions,
             IStringLocalizer stringLocalizer,
-            PrettyNameProvider prettyName)
+            ViewLocalizer viewLocalizer,
+            PrettyNameProvider prettyName,
+            PermissionService permissionService)
         {
             _displayFormatter = displayFormatter;
             _CurrencyNameTable = currencyNameTable ?? throw new ArgumentNullException(nameof(currencyNameTable));
             _StoreRepository = storeRepository ?? throw new ArgumentNullException(nameof(storeRepository));
             _InvoiceRepository = invoiceRepository ?? throw new ArgumentNullException(nameof(invoiceRepository));
-            _walletRepository = walletRepository;
             _RateProvider = rateProvider ?? throw new ArgumentNullException(nameof(rateProvider));
-            _UserManager = userManager;
             _EventAggregator = eventAggregator;
             _NetworkProvider = networkProvider;
             this._payoutHandlers = payoutHandlers;
@@ -120,7 +107,6 @@ namespace BTCPayServer.Controllers
             WebhookNotificationManager = webhookNotificationManager;
             _languageService = languageService;
             this._ExplorerClients = explorerClients;
-            _walletsController = walletsController;
             _invoiceActivator = invoiceActivator;
             _linkGenerator = linkGenerator;
             _authorizationService = authorizationService;
@@ -128,11 +114,12 @@ namespace BTCPayServer.Controllers
             _paymentModelExtensions = paymentModelExtensions;
             GlobalCheckoutModelExtensions = globalCheckoutModelExtensions;
             _prettyName = prettyName;
-            _fileService = fileService;
             _uriResolver = uriResolver;
             _defaultRules = defaultRules;
             _appService = appService;
             StringLocalizer = stringLocalizer;
+            ViewLocalizer = viewLocalizer;
+            _permissionService = permissionService;
         }
 
         internal async Task<InvoiceEntity> CreatePaymentRequestInvoice(Data.PaymentRequestData prData, decimal? amount, decimal amountDue, StoreData storeData, HttpRequest request, CancellationToken cancellationToken)
@@ -145,7 +132,7 @@ namespace BTCPayServer.Controllers
                 amount = amountDue;
             var redirectUrl = _linkGenerator.PaymentRequestLink(id, request.Scheme, request.Host, request.PathBase);
 
-            JObject invoiceMetadata = prData.GetBlob()?.FormResponse ?? new JObject();
+            JObject invoiceMetadata = prBlob.FormResponse ?? new JObject();
             invoiceMetadata.Merge(new InvoiceMetadata
             {
                 OrderId = PaymentRequestRepository.GetOrderIdForPaymentRequest(id),
@@ -158,12 +145,13 @@ namespace BTCPayServer.Controllers
                 new CreateInvoiceRequest
                 {
                     Metadata = invoiceMetadata,
-                    Currency = prBlob.Currency,
+                    Currency = prData.Currency,
                     Amount = amount,
                     Checkout = { RedirectURL = redirectUrl },
                     Receipt = new InvoiceDataBase.ReceiptOptions { Enabled = false }
                 };
-
+            if (prData.ReferenceId is not null or "")
+                invoiceRequest.AdditionalSearchTerms = [prData.ReferenceId];
             var additionalTags = new List<string> { PaymentRequestRepository.GetInternalTag(id) };
             return await CreateInvoiceCoreRaw(invoiceRequest, storeData, request.GetAbsoluteRoot(), additionalTags, cancellationToken);
         }
@@ -219,6 +207,8 @@ namespace BTCPayServer.Controllers
             InvoiceLogs logs = new InvoiceLogs();
             logs.Write("Creation of invoice starting", InvoiceEventData.EventSeverity.Info);
             var storeBlob = store.GetStoreBlob();
+            if (storeBlob.NoActiveUser)
+                throw new BitpayHttpException(400, "Invoice creation is disabled for this store (No active user)");
             if (string.IsNullOrEmpty(entity.Currency))
                 entity.Currency = storeBlob.DefaultCurrency;
             entity.Currency = entity.Currency.Trim().ToUpperInvariant();
@@ -262,18 +252,18 @@ namespace BTCPayServer.Controllers
                                               .ToList();
                 if (contexts.Count == 0)
                 {
-                    StringBuilder errors = new StringBuilder();
+                    var message = new StringBuilder();
                     if (!store.GetPaymentMethodConfigs(_handlers).Any())
-                        errors.AppendLine(
-                            "Warning: No wallet has been linked to your BTCPay Store. See the following link for more information on how to connect your store and wallet. (https://docs.btcpayserver.org/WalletSetup/)");
+                        message.AppendLine(
+                            "No wallet has been linked to your BTCPay Store. See the following link for more information on how to connect your store and wallet. (https://docs.btcpayserver.org/WalletSetup/)");
                     else
-                        errors.AppendLine("Warning: You have payment methods configured but none of them match any of the requested payment methods or the rate is not available. See logs below:");
-                    foreach (var error in logs.ToList())
                     {
-                        errors.AppendLine(error.ToString());
+                        message.AppendLine("Error retrieving a matching payment method or rate.");
+                        foreach (var error in logs.ToList())
+                            message.AppendLine(error.ToString());
                     }
 
-                    throw new BitpayHttpException(400, errors.ToString());
+                    throw new BitpayHttpException(400, message.ToString());
                 }
                 entity.SetPaymentPrompts(new PaymentPromptDictionary(contexts.Select(c => c.Prompt)));
             }

@@ -16,6 +16,7 @@ using BTCPayServer.Payments.Bitcoin;
 using BTCPayServer.Payments.Lightning;
 using BTCPayServer.Payouts;
 using BTCPayServer.Plugins.Crowdfund;
+using BTCPayServer.Plugins.Emails.Services;
 using BTCPayServer.Plugins.PointOfSale;
 using BTCPayServer.Services;
 using BTCPayServer.Services.Apps;
@@ -31,7 +32,6 @@ using Microsoft.Extensions.Options;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using YamlDotNet.RepresentationModel;
-using static BTCPayServer.Fido2.Models.Fido2CredentialBlob;
 using LightningAddressData = BTCPayServer.Data.LightningAddressData;
 
 namespace BTCPayServer.Hosting
@@ -41,6 +41,7 @@ namespace BTCPayServer.Hosting
 
         private readonly ApplicationDbContextFactory _DBContextFactory;
         private readonly StoreRepository _StoreRepository;
+        private readonly IEnumerable<IMigrationExecutor> _migrationExecutors;
         private readonly PaymentMethodHandlerDictionary _handlers;
         private readonly SettingsRepository _Settings;
         private readonly AppService _appService;
@@ -54,6 +55,7 @@ namespace BTCPayServer.Hosting
         public IOptions<LightningNetworkOptions> LightningOptions { get; }
 
         public MigrationStartupTask(
+            IEnumerable<IMigrationExecutor> migrationExecutors,
             PaymentMethodHandlerDictionary handlers,
             StoreRepository storeRepository,
             ApplicationDbContextFactory dbContextFactory,
@@ -67,6 +69,7 @@ namespace BTCPayServer.Hosting
             IFileService fileService,
             LightningClientFactoryService lightningClientFactoryService)
         {
+            _migrationExecutors = migrationExecutors;
             _handlers = handlers;
             _DBContextFactory = dbContextFactory;
             _StoreRepository = storeRepository;
@@ -229,6 +232,11 @@ namespace BTCPayServer.Hosting
                     await MigrateOldDerivationSchemes();
                     settings.MigrateOldDerivationSchemes = true;
                     await _Settings.UpdateSetting(settings);
+                }
+
+                foreach (var executor in _migrationExecutors)
+                {
+                    await executor.Execute(cancellationToken);
                 }
             }
             catch (Exception ex)
@@ -585,7 +593,7 @@ namespace BTCPayServer.Hosting
         private async Task MigrateEmailServerDisableTLSCerts()
         {
             await using var ctx = _DBContextFactory.CreateContext();
-            var serverEmailSettings = await _Settings.GetSettingAsync<Services.Mails.EmailSettings>();
+            var serverEmailSettings = await _Settings.GetSettingAsync<EmailSettings>();
             if (serverEmailSettings?.Server is String server)
             {
                 serverEmailSettings.DisableCertificateCheck = Extensions.IsLocalNetwork(server);
@@ -773,8 +781,7 @@ WHERE cte.""Id""=p.""Id""
                     SignatureCounter = (uint)u2FDevice.Counter,
                     PublicKey = CreatePublicKeyFromU2fRegistrationData(u2FDevice.PublicKey).Encode(),
                     UserHandle = u2FDevice.KeyHandle,
-                    Descriptor = new DescriptorClass(u2FDevice.KeyHandle),
-                    CredType = "u2f"
+                    Descriptor = new PublicKeyCredentialDescriptor(u2FDevice.KeyHandle)
                 });
 
                 await ctx.AddAsync(fido2);
@@ -962,23 +969,6 @@ retry:
                     goto retry;
                 }
             }
-        }
-
-        void MigrateDerivationSettings(DerivationSchemeSettings s, BTCPayNetwork network)
-        {
-            if (network == null || s.AccountKeySettings is not (null or { Length: 1 }))
-                return;
-            s.AccountKeySettings = s.AccountDerivation.GetExtPubKeys().Select(e => new AccountKeySettings()
-            {
-                AccountKey = e.GetWif(network.NBitcoinNetwork),
-            }).ToArray();
-#pragma warning disable CS0618 // Type or member is obsolete
-            s.AccountKeySettings[0].AccountKeyPath = s.AccountKeyPath;
-            s.AccountKeySettings[0].RootFingerprint = s.RootFingerprint;
-            s.ExplicitAccountKey = null;
-            s.AccountKeyPath = null;
-            s.RootFingerprint = null;
-#pragma warning restore CS0618 // Type or member is obsolete
         }
 
         private async Task MigratePaymentMethodCriteria()

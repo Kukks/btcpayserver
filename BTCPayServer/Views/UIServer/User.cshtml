@@ -1,9 +1,8 @@
 @using BTCPayServer.Abstractions.Contracts
-@using Microsoft.AspNetCore.Mvc.TagHelpers
 @model UsersViewModel.UserViewModel
 @inject IFileService FileService
 @{
-    ViewData.SetActivePage(ServerNavPages.Users, Model.Email);
+    ViewData.SetLayoutModel(new(nameof(ServerNavPages.Users), Model.Email));
     var canUpload = await FileService.IsAvailable();
 }
 
@@ -16,7 +15,7 @@
                 </li>
                 <li class="breadcrumb-item active" aria-current="page" text-translate="true">User</li>
             </ol>
-            <h2 text-translate="true">@ViewData["Title"]</h2>
+            <h2>@ViewData["Title"]</h2>
         </nav>
 		<button id="page-primary" name="command" type="submit" class="btn btn-primary" value="Save" text-translate="true">Save</button>
     </div>
@@ -36,7 +35,7 @@
             </div>
         </div>
     }
-    
+
     <div class="form-group">
         <label asp-for="Name" class="form-label"></label>
         <input asp-for="Name" class="form-control" />
@@ -73,6 +72,22 @@
     <div class="form-check my-3">
         <input asp-for="IsAdmin" type="checkbox" class="form-check-input" />
         <label asp-for="IsAdmin" class="form-check-label" text-translate="true">User is admin</label>
+    </div>
+	@if (Model.MonetizationEnabled)
+	{
+		<div class="form-group">
+			<div class="form-check">
+				<input asp-for="BypassMonetization" class="form-check-input" />
+				<label asp-for="BypassMonetization" class="form-check-label">Bypass monetization requirement</label>
+			</div>
+			<small class="text-muted">When enabled, this user will not be required to have an active subscription.</small>
+		</div>
+	}
+    <div class="form-group">
+        <label asp-for="StoreQuota" class="form-label"></label>
+        <input asp-for="StoreQuota" type="number" min="0" class="form-control" placeholder="@StringLocalizer["Use server default"]" />
+        <div class="form-text" text-translate="true">Override the server default maximum number of stores for this user. Leave empty to use the server default.</div>
+        <span asp-validation-for="StoreQuota" class="text-danger"></span>
     </div>
     @if (Model.Approved.HasValue)
     {

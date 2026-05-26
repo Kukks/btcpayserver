@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Http;
-using NBitcoin;
 
 namespace BTCPayServer.Models.StoreViewModels
 {
@@ -11,11 +10,10 @@ namespace BTCPayServer.Models.StoreViewModels
         [Display(Name = "Derivation scheme")]
         public string DerivationScheme { get; set; }
 
-        public List<(string KeyPath, string Address, RootedKeyPath RootedKeyPath)> AddressSamples
+        public List<(string KeyPath, string Address)> AddressSamples
         {
             get; set;
-        } = new List<(string KeyPath, string Address, RootedKeyPath RootedKeyPath)>();
-
+        }
         public string CryptoCode { get; set; }
         public string KeyPath { get; set; }
         [Display(Name = "Root fingerprint")]
@@ -28,26 +26,14 @@ namespace BTCPayServer.Models.StoreViewModels
         public string WalletFileContent { get; set; }
         public string Config { get; set; }
         public string Source { get; set; }
-        [Display(Name = "Derivation scheme format")]
-        public string DerivationSchemeFormat { get; set; }
         [Display(Name = "Account key")]
         public string AccountKey { get; set; }
         public BTCPayNetwork Network { get; set; }
         [Display(Name = "Can use hot wallet")]
         public bool CanUseHotWallet { get; set; }
-        [Display(Name = "Can use RPC import")]
-        public bool CanUseRPCImport { get; set; }
+        [Display(Name = "Can create a new cold wallet")]
+        public bool CanCreateNewColdWallet { get; set; }
         public bool SupportSegwit { get; set; }
         public bool SupportTaproot { get; set; }
-        public RootedKeyPath GetAccountKeypath()
-        {
-            if (KeyPath != null && RootFingerprint != null &&
-                NBitcoin.KeyPath.TryParse(KeyPath, out var p) &&
-                HDFingerprint.TryParse(RootFingerprint, out var fp))
-            {
-                return new RootedKeyPath(fp, p);
-            }
-            return null;
-        }
     }
 }

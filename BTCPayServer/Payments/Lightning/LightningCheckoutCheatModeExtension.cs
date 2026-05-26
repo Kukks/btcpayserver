@@ -3,8 +3,6 @@ using System.Linq;
 using System.Threading.Tasks;
 using BTCPayServer.Lightning;
 using BTCPayServer.Services;
-using BTCPayServer.Services.Invoices;
-using NBitcoin;
 using static BTCPayServer.Payments.ICheckoutCheatModeExtension;
 
 namespace BTCPayServer.Payments.Lightning
@@ -45,7 +43,6 @@ namespace BTCPayServer.Payments.Lightning
             {
                 var bolt11 = BOLT11PaymentRequest.Parse(destination, Network.NBitcoinNetwork);
                 var paymentHash = bolt11.PaymentHash?.ToString();
-                var paid = response.Details.TotalAmount.ToDecimal(LightMoneyUnit.BTC);
                 return new PayInvoiceResult(paymentHash)
                 {
                     SuccessMessage = $"Sent payment {paymentHash}"

@@ -4,9 +4,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO.Compression;
 using System.IO;
-using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 using Newtonsoft.Json.Linq;
 using Newtonsoft.Json.Serialization;
 
@@ -142,6 +140,7 @@ namespace BTCPayServer.Data
                     "LightningLike" or "LightningNetwork" => $"{cryptoCode}-LN",
                     "LNURLPAY" => $"{cryptoCode}-LNURL",
                     "EthereumLike" => $"{cryptoCode}-LEGACY",
+                    "CHAIN" or "LNURL" or "LN" => paymentMethodId,
                     _ => throw new NotSupportedException("Unknown payment type " + paymentType)
                 };
             }
@@ -159,6 +158,7 @@ namespace BTCPayServer.Data
                     "BTCLike" or "MoneroLike" or "ZcashLike" => $"{cryptoCode}-CHAIN",
                     "LightningLike" or "LightningNetwork" => $"{cryptoCode}-LN",
                     "LNURLPAY" => $"{cryptoCode}-LNURL",
+                    "EthereumLike" => $"{cryptoCode}-LEGACY",
                     _ => paymentMethodId
                 };
             }

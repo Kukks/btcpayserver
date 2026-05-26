@@ -1,7 +1,4 @@
-FROM mcr.microsoft.com/dotnet/sdk:8.0.404-bookworm-slim AS builder
-
-RUN apt-get update && apt-get install -y --no-install-recommends chromium-driver \
-    && rm -rf /var/lib/apt/lists/*
+FROM mcr.microsoft.com/dotnet/sdk:10.0.202-noble AS builder
 
 WORKDIR /source
 COPY nuget.config nuget.config
@@ -24,6 +21,9 @@ COPY . .
 
 ARG CONFIGURATION_NAME=Release
 RUN cd BTCPayServer.Tests && dotnet build --configuration ${CONFIGURATION_NAME} /p:CI_TESTS=true /p:RazorCompileOnBuild=true
+RUN dotnet tool install --global Microsoft.Playwright.CLI
+ENV PATH="$PATH:/root/.dotnet/tools"
+RUN playwright install chromium --with-deps
 WORKDIR /source/BTCPayServer.Tests
 ENV CONFIGURATION_NAME=${CONFIGURATION_NAME}
 ENTRYPOINT ["./docker-entrypoint.sh"]

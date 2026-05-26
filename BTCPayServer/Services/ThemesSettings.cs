@@ -1,4 +1,3 @@
-using System;
 using System.ComponentModel.DataAnnotations;
 using BTCPayServer.JsonConverters;
 using Newtonsoft.Json;
@@ -30,10 +29,4 @@ public class ThemeSettings
     public UnresolvedUri LogoUrl { get; set; }
 
     public bool FirstRun { get; set; } = true;
-
-    public override string ToString()
-    {
-        // no logs
-        return string.Empty;
-    }
 }
